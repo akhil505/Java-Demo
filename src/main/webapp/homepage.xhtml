@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml"
+	xmlns:f="http://java.sun.com/jsf/core"
+	xmlns:h="http://java.sun.com/jsf/html"
+	xmlns:ui="http://java.sun.com/jsf/facelets"
+	xmlns:p="http://primefaces.org/ui">
+<h:head>
+	<title>Homepage</title>
+</h:head>
+<h:body
+	style="background-image:url(images/background_tata.jpg); background-repeat: no-repeat; background-size: cover">
+	<div id="div1"
+		style="font-size: 70%; font-family: serif; text-align: left; background-repeat: x; padding-top: 5%; width: auto;">
+		<h:form>
+			<p:commandButton style="position:fixed; right:1%;" value="Logout"
+				action="#{loginBean.logout}">
+			</p:commandButton>
+			<h1
+				style="text-align: left; font-style: italic; font-family: serif; color: white;">Welcome
+				#{loginBean.loginName}!</h1>
+			<p:separator />
+			<h:panelGrid columns="3" cellpadding="50"
+				style="padding-left:7%; padding-top:2%">
+				<p:panel header="Relational Database"
+					style="background-image:url(images/portal-background-gradient.jpg); background-repeat: no-repeat;  background-size:cover">
+					<h:commandButton action="requestdetails?faces-redirect=true"
+						image="/images/RDBMS.png" title="RDBMS" value="RDBMS"
+						style="height:200px; width: 200px; border-radius: 25px;" />
+				</p:panel>
+				<p:panel header="Data Streaming"
+					style="background-image:url(images/portal-background-gradient.jpg); background-repeat: no-repeat;  background-size:cover">
+					<h:commandButton action="dataStreaming?faces-redirect=true"
+						image="/images/Streaming.png" title="Streaming" value="Streaming"
+						style="height:200px; width: 200px; border-radius: 25px; " />
+				</p:panel>
+				<p:panel header="Social Media"
+					style="background-image:url(images/portal-background-gradient.jpg); background-repeat: no-repeat;  background-size:cover">
+					<h:commandButton action="#{loginBean.checkValidUser}"
+						image="/images/SocialMedia.png" title="Social Media"
+						value="SocialMedia"
+						style="height:200px; width: 200px; border-radius: 25px; " />
+				</p:panel>
+			</h:panelGrid>
+		</h:form>
+	</div>
+</h:body>
+</html>

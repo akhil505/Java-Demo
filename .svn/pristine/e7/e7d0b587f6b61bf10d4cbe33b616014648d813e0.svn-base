@@ -1,0 +1,258 @@
+package com.datamigration.dao;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.ResourceBundle;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+
+import org.apache.commons.codec.binary.Base64;
+import org.apache.log4j.Logger;
+
+import com.datamigration.model.MetaDataConnectionDetails;
+import com.datamigration.model.RequestDetails;
+import com.datamigration.model.RequestLogDetails;
+import com.datamigration.util.DataMigrationConstants;
+import com.datamigration.util.FRDMException;
+import com.datamigration.util.HDFSUtil;
+import com.datamigration.util.PasswordCryption;
+import com.datamigration.util.ShellUtil;
+import com.jcraft.jsch.JSchException;
+
+public class SqoopDAO {
+
+	final Logger LOGGER = Logger.getLogger(SqoopDAO.class);
+	String key;
+	String hdfspath;
+
+	public String sqoopQueryGeneration(RequestDetails sb, RequestLogDetails logs)
+			throws IOException, FRDMException {
+		String driver = "";
+		String URL = "";
+		String sqoopQuery = "";
+		String destination = sb.getStoragetarget().toLowerCase();
+		String userName = sb.getUsername();
+		String encryptpassword = sb.getPassword();
+		String tbName = sb.getSourcetable();
+		String datafiletype = sb.getStorageformat();
+		String splitbyColumn = sb.getSplitbycolumn();
+		String compressiontype = sb.getStoragecompression();
+		String loadType = sb.getLoadtype();
+		long mapper = sb.getMappers();
+		switch (sb.getType().toLowerCase()) {
+		case "mysql":
+			driver = DataMigrationConstants.MYSQL_DRIVER_CLASS;
+			URL = DataMigrationConstants.MYSQL_CONNECTION_PREFIX;
+			break;
+		case "oracle":
+			driver = DataMigrationConstants.MYSQL_DRIVER_CLASS;
+			URL = DataMigrationConstants.MYSQL_CONNECTION_PREFIX
+					+ DataMigrationConstants.MYSQL_HOSTNAME + ":"
+					+ DataMigrationConstants.MYSQL_PORT + "/";
+			break;
+		}
+		URL = URL + sb.getServerhost() + ":" + sb.getServerport() + "/"
+				+ sb.getSourcedatabase()
+				+ "?zeroDateTimeBehavior=convertToNull";
+
+		switch (sb.getStoragecompression().toLowerCase()) {
+		case "snappy codec":
+			compressiontype = DataMigrationConstants.SNAPPY_CODEC_CLASS;
+		}
+		switch (datafiletype.toLowerCase()) {
+		case "avro":
+			datafiletype = "avrodatafile";
+			break;
+
+		default:
+			break;
+		}
+
+		String passwordDir = hdfspath.concat("/passwords");
+		String passwordFile = passwordDir.concat("/" + sb.getRequestname()
+				+ ".enc");
+		LOGGER.info("pwd file:" + passwordFile);
+		HDFSUtil util = new HDFSUtil();
+		byte[] pwdarray = Base64.decodeBase64(encryptpassword);
+		util.writeFile(passwordFile, new ByteArrayInputStream(pwdarray), false,
+				"-rwx------");
+
+		if ("full".equalsIgnoreCase(loadType)) {
+			sqoopQuery = "sqoop import  -Dorg.apache.sqoop.credentials.loader.class=org.apache.sqoop.util.password.CryptoFileLoader  -Dorg.apache.sqoop.credentials.loader.crypto.passphrase="
+					+ key
+					+ " -Dorg.apache.sqoop.credentials.loader.crypto.salt=DESSSALTKEY --username "
+					+ userName
+					+ " --password-file "
+					+ passwordFile
+					+ " --table " + tbName + " --as-" + datafiletype;
+
+		} else {
+			if ("monthly".equalsIgnoreCase(loadType)
+					|| "daily".equalsIgnoreCase(loadType)
+					|| "adhoc".equalsIgnoreCase(loadType)) {
+				String startDate = logs.getStartdate();
+				String endDate = logs.getEnddate();
+				String CriteriaColumn = sb.getCriteriacolumn();
+				sqoopQuery = "sqoop import  -Dorg.apache.sqoop.credentials.loader.class=org.apache.sqoop.util.password.CryptoFileLoader  -Dorg.apache.sqoop.credentials.loader.crypto.passphrase="
+						+ key
+						+ " -Dorg.apache.sqoop.credentials.loader.crypto.salt=DESSSALTKEY --username "
+						+ userName
+						+ " --password-file "
+						+ passwordFile
+						+ " --query  "
+						+ "\""
+						+ " select * from "
+						+ tbName
+						+ " WHERE ("
+						+ CriteriaColumn
+						+ " >'"
+						+ startDate
+						+ "' AND "
+						+ CriteriaColumn
+						+ " <='"
+						+ endDate
+						+ "' ) AND \\$CONDITIONS " + "\"";
+			}
+		}
+
+		sqoopQuery = sqoopQuery + " --compression-codec " + compressiontype;
+		if (sb.getMappers() > 1) {
+			sqoopQuery = sqoopQuery + " -m " + mapper + " --split-by "
+					+ splitbyColumn;
+		} else {
+			sqoopQuery = sqoopQuery + " -m " + 1;
+		}
+
+		sqoopQuery = sqoopQuery + " --connect " + URL + " --driver " + driver;
+
+		switch (destination.toLowerCase()) {
+		case "hdfs":
+		case "hive":
+			StringBuilder columns = getJavaTypes(sb);
+			String targetDirectory = logs.getTargetdirectory();
+			System.out.println(targetDirectory + "---------");
+			sqoopQuery = sqoopQuery + " --map-column-java "
+					+ columns.substring(1) + " --target-dir " + targetDirectory
+					+ " --delete-target-dir";
+			break;
+		case "hbase":
+			String hbaseTable = sb.getSourcetable();
+			String columnFamily = DataMigrationConstants.HBASE_DEFAULT_COLUMN_FAMILY;
+			String rowKey = sb.getRowkey();
+			LOGGER.info(hbaseTable + columnFamily + rowKey
+					+ "*****************");
+			sqoopQuery = sqoopQuery + " --hbase-create-table "
+					+ "--hbase-table " + hbaseTable + " --column-family "
+					+ columnFamily + " --hbase-row-key " + rowKey;
+			break;
+		}
+		sqoopQuery = sqoopQuery + " > " + DataMigrationConstants.LOG_DIR
+				+ logs.getRequestlogid() + " 2>&1";
+		return sqoopQuery;
+
+	}
+
+	public StringBuilder getJavaTypes(RequestDetails sb) throws FRDMException {
+		MetaDataConnectionDetails details = new MetaDataConnectionDetails();
+		details.setDbname(sb.getSourcedatabase());
+		details.setHostname(sb.getServerhost());
+		ResourceBundle bundle = ResourceBundle.getBundle("parameters");
+		String decryptPwd;
+		StringBuilder columns = new StringBuilder();
+		try {
+			decryptPwd = PasswordCryption.decrypt(sb.getPassword(),
+					bundle.getString("key"));
+			details.setPassword(decryptPwd);
+			details.setPort(sb.getServerport());
+			details.setServertype(sb.getType());
+			details.setUsername(sb.getUsername());
+			LOGGER.info(details.getServertype());
+			Connection dbConn = DbConnection.getConnection(details);
+			String query = "select * from " + sb.getSourcedatabase() + "."
+					+ sb.getSourcetable();
+			Statement stmt = dbConn.createStatement();
+			ResultSet rs = stmt.executeQuery(query);
+			int col_count = rs.getMetaData().getColumnCount();
+			for (int i = 1; i <= col_count; i++) {
+				String col_name = rs.getMetaData().getColumnName(i);
+				String col_type = rs.getMetaData().getColumnTypeName(i);
+				String convType = "";
+				switch (col_type.toLowerCase()) {
+				case "tinyint":
+				case "smallint":
+				case "mediumint":
+				case "int":
+					convType = "Integer";
+					break;
+				case "double":
+					convType = "Double";
+					break;
+				case "float":
+					convType = "Float";
+					break;
+				case "long":
+				case "bigint":
+					convType = "Long";
+					break;
+				default:
+					convType = "String";
+					break;
+				}
+				columns = columns.append("," + col_name.concat("=" + convType));
+			}
+		} catch (InvalidKeyException | NoSuchAlgorithmException
+				| NoSuchPaddingException | IllegalBlockSizeException
+				| BadPaddingException | InvalidKeySpecException
+				| ClassNotFoundException | SQLException e) {
+			// TODO Auto-generated catch block
+			throw new FRDMException(e.getMessage(), e);
+		}
+
+		return columns;
+	}
+
+	public String executeSqoopScripts(String path, RequestDetails sqoop,
+			RequestLogDetails logs) throws FRDMException {
+		String statusCode = DataMigrationConstants.FAILED;
+		try {
+			HDFSUtil util = new HDFSUtil();
+			String sqoopQuery = "";
+			ResourceBundle bundle = ResourceBundle.getBundle("parameters");
+			hdfspath = bundle.getString("hdfspath");
+			
+			util.writeToOutPutStream(path, new Date()
+					+ " INFO: Generating Sqoop Query" + "\n");
+			sqoopQuery = sqoopQueryGeneration(sqoop, logs);
+			util.writeToOutPutStream(path, new Date()
+					+ " INFO: Generated Sqoop Query: " + sqoopQuery + "\n");
+			LOGGER.info(sqoopQuery);
+			util.writeToOutPutStream(path, new Date()
+					+ " INFO: Executing Sqoop Query" + "\n");
+			
+			ArrayList<String> commands = new ArrayList<String>();
+			commands.add(0, "kinit -kt " + DataMigrationConstants.KEYTAB + " "
+					+ DataMigrationConstants.PRINCIPAL);
+			commands.add(1, sqoopQuery);
+			statusCode = ShellUtil.executeShellCommands(commands, path);
+		} catch (IOException | JSchException | InvalidKeyException
+				| NoSuchAlgorithmException | NoSuchPaddingException
+				| IllegalBlockSizeException | BadPaddingException
+				| InvalidKeySpecException e) {
+			throw new FRDMException(
+					"Could not execute Sqoop extraction process: "
+							+ e.getMessage(), e);
+		}
+		return statusCode;
+	}
+}

@@ -1,0 +1,306 @@
+package com.datamigration.dao;
+
+import java.io.IOException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.ResourceBundle;
+import java.util.Set;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+
+import org.apache.log4j.Logger;
+
+import com.datamigration.model.MetaDataConnectionDetails;
+import com.datamigration.model.RequestDetails;
+import com.datamigration.model.RequestLogDetails;
+import com.datamigration.util.FRDMException;
+import com.datamigration.util.HDFSUtil;
+import com.datamigration.util.PasswordCryption;
+
+/**
+ * @author
+ *
+ */
+public class SchemaCheckDAO {
+
+	static final Logger LOGGER = Logger.getLogger(SchemaCheckDAO.class);
+
+	/**
+	 * @return
+	 * @throws SQLException
+	 * @throws ClassNotFoundException
+	 * @throws InvalidKeySpecException
+	 * @throws BadPaddingException
+	 * @throws IllegalBlockSizeException
+	 * @throws NoSuchPaddingException
+	 * @throws NoSuchAlgorithmException
+	 * @throws InvalidKeyException
+	 */
+	public HashMap<String, String> getSourceSchema(RequestDetails sqoop)
+			throws SQLException, ClassNotFoundException, InvalidKeyException,
+			NoSuchAlgorithmException, NoSuchPaddingException,
+			IllegalBlockSizeException, BadPaddingException,
+			InvalidKeySpecException {
+
+		HashMap<String, String> sourceMap = new HashMap<String, String>();
+		MetaDataConnectionDetails details = new MetaDataConnectionDetails();
+		details.setDbname(sqoop.getSourcedatabase());
+		details.setHostname(sqoop.getServerhost());
+		ResourceBundle bundle = ResourceBundle.getBundle("parameters");
+		String decryptPwd = PasswordCryption.decrypt(sqoop.getPassword(),
+				bundle.getString("key"));
+		details.setPassword(decryptPwd);
+		details.setPort(sqoop.getServerport());
+		details.setServertype(sqoop.getType());
+		details.setUsername(sqoop.getUsername());
+		Connection dbConn = DbConnection.getConnection(details);
+		String query = "select * from " + sqoop.getSourcetable();
+		try {
+			Statement stmt = dbConn.prepareStatement(query);
+			ResultSet rs = stmt.executeQuery(query);
+			int col_count = rs.getMetaData().getColumnCount();
+			for (int i = 1; i <= col_count; i++) {
+				sourceMap.put(rs.getMetaData().getColumnName(i), rs
+						.getMetaData().getColumnTypeName(i));
+			}
+			rs.close();
+			stmt.close();
+		} finally {
+			if (dbConn != null) {
+				dbConn.close();
+			}
+		}
+
+		return sourceMap;
+	}
+
+	/**
+	 * @return
+	 * @throws SQLException
+	 * @throws ClassNotFoundException
+	 */
+	public HashMap<String, String> getDestinationSchema(RequestDetails sqoop)
+			throws SQLException, ClassNotFoundException {
+
+		HashMap<String, String> destinationMap = new HashMap<String, String>();
+		String query = "select * from " + sqoop.getSourcetable();
+		Connection dbConn = DbConnection.getHiveConnection(sqoop
+				.getSourcedatabase());
+		try {
+			Statement stmt = dbConn.prepareStatement(query);
+			ResultSet rs = stmt.executeQuery(query);
+			int col_count = rs.getMetaData().getColumnCount();
+			for (int i = 1; i <= col_count; i++) {
+				destinationMap.put(
+						rs.getMetaData().getColumnName(i).split("\\.")[1], rs
+								.getMetaData().getColumnTypeName(i));
+			}
+		} finally {
+			if (dbConn != null) {
+				dbConn.close();
+			}
+		}
+		return destinationMap;
+	}
+
+	/**
+	 * @return
+	 * @throws SQLException
+	 * @throws InvalidKeySpecException
+	 * @throws BadPaddingException
+	 * @throws IllegalBlockSizeException
+	 * @throws NoSuchPaddingException
+	 * @throws NoSuchAlgorithmException
+	 * @throws ClassNotFoundException
+	 * @throws InvalidKeyException
+	 */
+	public HashMap<String, String> compareSchema(RequestDetails bean)
+			throws FRDMException {
+
+		StringBuffer mismatchString = new StringBuffer();
+		String tempTableName = "";
+		try {
+			HashMap<String, String> sourceMap = null;
+			try {
+				sourceMap = getSourceSchema(bean);
+			} catch (InvalidKeyException | ClassNotFoundException
+					| NoSuchAlgorithmException | NoSuchPaddingException
+					| IllegalBlockSizeException | BadPaddingException
+					| InvalidKeySpecException | SQLException e) {
+				throw new FRDMException("Could not fetch source table schema: "
+						+ e.getMessage(), e);
+			}
+			HashMap<String, String> destinationMap = null;
+			try {
+				destinationMap = getDestinationSchema(bean);
+			} catch (ClassNotFoundException | SQLException e) {
+				throw new FRDMException(
+						"Could not fetch destination table schema: "
+								+ e.getMessage(), e);
+			}
+			final HashMap<String, String> convSourceMap = new HashMap<String, String>();
+			for (String col : sourceMap.keySet()) {
+				convSourceMap.put(col, dataTypeConvert(sourceMap.get(col)));
+			}
+			LOGGER.info("{}{}{}:" + convSourceMap);
+			LOGGER.info("[][][]:" + destinationMap);
+			HashMap<String, String> colAddMismatch = new HashMap<String, String>();
+			HashMap<String, String> dtMismatch = new HashMap<String, String>();
+			HashMap<String, String> colDelMismatch = new HashMap<String, String>();
+			String tableName = bean.getSourcetable();
+			if (convSourceMap.equals(destinationMap)) {
+				mismatchString.append("No Mismatch");
+				LOGGER.info("NO Mismatch");
+			} else {
+				Set<String> destKeyset = destinationMap.keySet();
+				for (String key : destKeyset) {
+					if (!convSourceMap.containsKey(key)) {
+						colDelMismatch.put(key, destinationMap.get(key));
+					} else if (!destinationMap.get(key).equalsIgnoreCase(
+							convSourceMap.get(key))) {
+						dtMismatch.put(key, convSourceMap.get(key));
+					}
+				}
+				colAddMismatch.putAll(convSourceMap);
+				colAddMismatch.putAll(destinationMap);
+				colAddMismatch.entrySet().removeAll(destinationMap.entrySet());
+				if (!colAddMismatch.isEmpty() && colDelMismatch.isEmpty()
+						&& dtMismatch.isEmpty()) {
+					String addCols = "";
+					for (String colAdd : colAddMismatch.keySet()) {
+						addCols = addCols.concat("," + colAdd + " "
+								+ colAddMismatch.get(colAdd));
+					}
+					Connection dbConn = DbConnection.getHiveConnection(bean
+							.getSourcedatabase());
+					String query = "ALTER TABLE " + tableName + " ADD "
+							+ addCols.substring(1);
+					LOGGER.info("ALTER Statement" + query);
+					Statement stmt = dbConn.createStatement();
+					stmt.execute(query);
+					mismatchString.append("Columns added to Destination: ");
+					LOGGER.info("Columns added to Destination: ");
+					mismatchString.append(addCols.substring(1));
+				} else {
+					String currDate = new SimpleDateFormat("yyyyMMdd")
+							.format(new Date());
+					tempTableName = tableName.concat("_" + currDate);
+					if (!colAddMismatch.isEmpty()) {
+						mismatchString
+								.append("Columns Missing from Destination: ");
+						LOGGER.info("Columns Missing from Destination: ");
+						String addCols = "";
+						for (String colAdd : colAddMismatch.keySet()) {
+							addCols = addCols.concat("," + colAdd + " "
+									+ colAddMismatch.get(colAdd));
+						}
+						mismatchString.append(addCols.substring(1) + "\n");
+					}
+					if (!colDelMismatch.isEmpty()) {
+						mismatchString.append("Columns Missing from Source: ");
+						LOGGER.info("Columns Missing from Source: ");
+						String delCols = "";
+						for (String colDel : colDelMismatch.keySet()) {
+							delCols = delCols.concat("," + colDel + " "
+									+ colDelMismatch.get(colDel));
+						}
+						mismatchString.append(delCols.substring(1) + "\n");
+					}
+					if (!dtMismatch.isEmpty()) {
+						mismatchString.append("Datatype Mismatch: ");
+						LOGGER.info("Datatype Mismatch: ");
+						String dtCols = "";
+						for (String colDt : dtMismatch.keySet()) {
+							dtCols = dtCols.concat("," + colDt + " "
+									+ dtMismatch.get(colDt));
+						}
+						mismatchString.append(dtCols.substring(1) + "\n");
+					}
+				}
+			}
+		} catch (FRDMException e) {
+			throw new FRDMException(e.getMessage(), e);
+		} catch (ClassNotFoundException | SQLException e) {
+			throw new FRDMException("Schema check failed: " + e.getMessage(), e);
+		}
+		String mismatch = mismatchString.toString();
+		HashMap<String, String> mismatchMap = new HashMap<String, String>();
+		mismatchMap.put("mismatch", mismatch);
+		mismatchMap.put("tableName", tempTableName);
+		return mismatchMap;
+	}
+
+	public String dataTypeConvert(final String sourceDataType) {
+		String destDataType;
+		switch (sourceDataType.toLowerCase()) {
+		case "int":
+		case "bigint":
+		case "double":
+		case "float":
+		case "decimal":
+		case "long":
+			destDataType = sourceDataType;
+			break;
+		case "tinyint":
+		case "smallint":
+		case "mediumint":
+			destDataType = "int";
+			break;
+		default:
+			destDataType = "string";
+			break;
+		}
+		return destDataType;
+	}
+
+	public RequestLogDetails runSchemaCheck(String path,
+			RequestLogDetails requestLogDetails, RequestDetails request)
+			throws IOException, FRDMException {
+		boolean existflag;
+		HDFSUtil util = new HDFSUtil();
+		String table = request.getSourcetable();
+		String targetDir = request.getTargetdirectory();
+		util.writeToOutPutStream(path, new Date()
+				+ " INFO: Checking if the table " + request.getSourcedatabase()
+				+ "." + table + " exists in Hive" + "\n");
+		existflag = new HiveDAO().isTableExists(request.getSourcedatabase(),
+				request.getSourcetable());
+		if (existflag) {
+			util.writeToOutPutStream(path, new Date() + " INFO: Table " + table
+					+ " exist in Hive" + "\n");
+			util.writeToOutPutStream(path, new Date()
+					+ " INFO: Comparing Source and destination schemas" + "\n");
+			HashMap<String, String> mismatchMap = compareSchema(request);
+			String mismatch = mismatchMap.get("mismatch");
+			String mismatchtable = mismatchMap.get("tableName");
+			requestLogDetails.setMismatchtable(mismatchtable);
+			requestLogDetails.setSchemamismatch(mismatch);
+			if (mismatchtable.isEmpty()) {
+				String tarDir = targetDir + "/" + table;
+				requestLogDetails.setTargetdirectory(tarDir);
+			} else {
+				String tarDir = targetDir + "/" + mismatchtable;
+				requestLogDetails.setTargetdirectory(tarDir);
+			}
+
+		} else {
+			util.writeToOutPutStream(path, new Date() + " INFO: Table " + table
+					+ " doesnot exist in Hive" + "\n");
+			requestLogDetails.setMismatchtable("");
+			requestLogDetails.setSchemamismatch("No Mismatch");
+			String tarDir = targetDir + "/" + table;
+			requestLogDetails.setTargetdirectory(tarDir);
+		}
+		return requestLogDetails;
+	}
+}

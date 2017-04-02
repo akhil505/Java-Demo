@@ -1,0 +1,110 @@
+package com.datamigration.dao;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import java.util.Date;
+import java.util.ResourceBundle;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+
+import org.apache.hadoop.fs.Path;
+import org.apache.log4j.Logger;
+
+import com.datamigration.model.RequestDetails;
+import com.datamigration.model.RequestLogDetails;
+import com.datamigration.util.DataMigrationConstants;
+import com.datamigration.util.FRDMException;
+import com.datamigration.util.HDFSUtil;
+import com.datamigration.util.PasswordCryption;
+import com.jcraft.jsch.ChannelExec;
+import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.JSchException;
+import com.jcraft.jsch.Session;
+
+public class ReconDAO {
+	final Logger LOGGER = Logger.getLogger(ReconDAO.class);
+
+	public String executeReconProcess(Path path, String parameters)
+			throws FRDMException {
+		String statusCode = "0";
+		try {
+			HDFSUtil util = new HDFSUtil();
+			util.writeToOutPutStream(path, new Date() + " INFO: Recon process started" + "\n");
+			BufferedReader br = null;
+
+			JSch jsch = new JSch();
+			Session session1;
+
+			session1 = jsch.getSession(DataMigrationConstants.SHELL_USER,
+					DataMigrationConstants.HIVE_HOSTNAME,
+					DataMigrationConstants.PORT);
+			ResourceBundle bundle = ResourceBundle.getBundle("parameters");
+			String key = bundle.getString("key");
+			String pwd = PasswordCryption.decrypt(
+					DataMigrationConstants.SHELL_PASSWORD, key);
+			session1.setPassword(pwd);
+			session1.setConfig("StrictHostKeyChecking", "no");
+			session1.connect();
+
+			ChannelExec channelExec = (ChannelExec) session1
+					.openChannel("exec");
+
+			String sparkJobCommand = "spark-submit  --jars $(echo /home/498796/repository/org/apache/poi/poi/3.9/poi-3.9.jar | tr ' ' ',') "
+					+ "--class com.recon.main.Working "
+					+ "--master yarn --files /etc/hive/conf/hive-site.xml --driver-class-path hive-site.xml --deploy-mode cluster"
+					+ " /home/498796/Reconciliation.jar " + parameters;
+			LOGGER.info("recon Command:" + sparkJobCommand);
+			util.writeToOutPutStream(path, new Date() + " INFO: Spark Command: " + sparkJobCommand
+					+ "\n");
+			channelExec.setInputStream(null);
+			channelExec.setCommand(sparkJobCommand + "; echo $?");
+			channelExec.connect();
+
+			InputStream is = channelExec.getInputStream();
+			br = new BufferedReader(new InputStreamReader(is));
+
+			String line;
+			while ((line = br.readLine()) != null && !channelExec.isClosed()) {
+				util.writeToOutPutStream(path, line + "\n");
+				statusCode = line;
+			}
+			br.close();
+			is.close();
+
+			channelExec.disconnect();
+			session1.disconnect();
+		} catch (IOException | JSchException | InvalidKeyException
+				| NoSuchAlgorithmException | NoSuchPaddingException
+				| IllegalBlockSizeException | BadPaddingException
+				| InvalidKeySpecException e) {
+			throw new FRDMException("Could not execute Recon process: "
+					+ e.getMessage(), e);
+		}
+		return statusCode;
+
+	}
+
+	public String getReconParameters(RequestDetails request,
+			RequestLogDetails requestLogDetails) {
+
+		return request.getServerhost() + "," + request.getServerport() + ","
+				+ request.getType() + "," + request.getSourcedatabase() + ","
+				+ request.getSourcetable() + ","
+				+ requestLogDetails.getRequesttype() + ","
+				+ request.getCriteriacolumn() + ","
+				+ requestLogDetails.getStartdate() + ","
+				+ requestLogDetails.getEnddate() + ","
+				+ request.getStoragetarget() + "," + request.getUsername()
+				+ "," + request.getPassword() + ","
+				+ requestLogDetails.getReconfile() + "," + request.getRowkey()
+				+ "," + requestLogDetails.getRequestlogid();
+
+	}
+}

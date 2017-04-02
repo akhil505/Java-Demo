@@ -1,0 +1,76 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+	xmlns:ui="http://java.sun.com/jsf/facelets"
+	xmlns:h="http://java.sun.com/jsf/html"
+	xmlns:f="http://java.sun.com/jsf/core"
+	xmlns:p="http://primefaces.org/ui">
+	<h:form>
+		<h:panelGrid columns="2" cellpadding="5">
+			<p:panel id="rpanel" header="Source Details"
+				style="text-align:left; height:relative; background-image:url(images/portal-background-gradient.jpg); background-size: cover">
+				<p:scrollPanel style="height: 300px; width:450px;" mode="native">
+					<p:panelGrid columns="2" style="height: 300px; width:450px;">
+						<h:outputText value="Request Name" />
+						<p:outputLabel value="#{requestsBean.selectedRequest.requestname}" />
+						<h:outputText value="Server Name" />
+						<p:outputLabel value="#{requestsBean.selectedRequest.servername}" />
+						<h:outputText value="Server Type" />
+						<p:outputLabel value="#{requestsBean.selectedRequest.type}" />
+						<h:outputText value="Server Hostname" />
+						<p:outputLabel value="#{requestsBean.selectedRequest.serverhost}" />
+						<h:outputText value="Server Port" />
+						<p:outputLabel value="#{requestsBean.selectedRequest.serverport}" />
+						<h:outputText value="Username" />
+						<p:outputLabel value="#{requestsBean.selectedRequest.username}" />
+						<h:outputText value="Database" />
+						<p:outputLabel
+							value="#{requestsBean.selectedRequest.sourcedatabase}" />
+						<h:outputText value="Tables" />
+						<p:outputLabel
+							value="#{requestsBean.selectedRequest.sourcetables}" />
+					</p:panelGrid>
+				</p:scrollPanel>
+			</p:panel>
+			<p:panel id="tpanel" header="Target Details"
+				style="text-align:left;height:relative; background-image:url(images/portal-background-gradient.jpg); background-size: cover">
+				<p:scrollPanel style="height: 300px; width:450px;" mode="native">
+					<p:panelGrid columns="2" style="height: 300px; width:450px;">
+						<h:outputText value="Target Type" />
+						<p:outputLabel
+							value="#{requestsBean.selectedRequest.storagetarget}" />
+						<h:outputText value="Storage Format" />
+						<p:outputLabel
+							value="#{requestsBean.selectedRequest.storageformat}" />
+						<h:outputText value="Storage Compression" />
+						<p:outputLabel
+							value="#{requestsBean.selectedRequest.storagecompression}" />
+						<h:outputText value="Target Directory"
+							rendered="#{not empty requestsBean.selectedRequest.targetdirectory}" />
+						<p:outputLabel
+							value="#{requestsBean.selectedRequest.targetdirectory}"
+							rendered="#{not empty requestsBean.selectedRequest.targetdirectory}" />
+						<h:outputText value="Row Key"
+							rendered="#{requestsBean.selectedRequest.rowkey ne null}" />
+						<p:outputLabel value="#{requestsBean.selectedRequest.rowkey}"
+							rendered="#{requestsBean.selectedRequest.rowkey ne null}" />
+						<h:outputLabel value="Mappers" />
+						<p:outputLabel value="#{requestsBean.selectedRequest.mappers}" />
+						<h:outputText value="Split-By Key"
+							rendered="#{requestsBean.selectedRequest.splitbycolumn ne null}" />
+						<p:outputLabel
+							value="#{requestsBean.selectedRequest.splitbycolumn}"
+							rendered="#{requestsBean.selectedRequest.splitbycolumn ne null}" />
+						<h:outputText value="Load Type" />
+						<p:outputLabel value="#{requestsBean.selectedRequest.loadtype}" />
+						<h:outputText value="Criteria Column"
+							rendered="#{not empty requestsBean.selectedRequest.criteriacolumn}" />
+						<p:outputLabel
+							value="#{requestsBean.selectedRequest.criteriacolumn}"
+							rendered="#{not empty requestsBean.selectedRequest.criteriacolumn}" />
+					</p:panelGrid>
+				</p:scrollPanel>
+			</p:panel>
+		</h:panelGrid>
+	</h:form>
+
+
+</ui:composition>

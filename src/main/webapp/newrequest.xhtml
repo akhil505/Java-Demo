@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml"
+	xmlns:f="http://java.sun.com/jsf/core"
+	xmlns:h="http://java.sun.com/jsf/html"
+	xmlns:ui="http://java.sun.com/jsf/facelets"
+	xmlns:p="http://primefaces.org/ui">
+<h:head>
+	<title>Request Details</title>
+	<style type="text/css">
+.ui-picklist .ui-picklist-list {
+	height: 150px;
+	width: 150px;
+}
+
+.ui-picklist .ui-picklist-buttons {
+	height: 20px;
+	padding: 0px 5px;
+}
+</style>
+</h:head>
+<h:body
+	style="background-image:url(images/background_tata.jpg); background-repeat: no-repeat; background-size: cover">
+	<div id="div1"
+		style="font-size: 70%; font-family: serif; text-align: left; background-repeat: x; padding-top: 5%; width: auto;">
+		<h:form>
+			<p:tabMenu activeIndex="1">
+				<p:menuitem value="Home Page" outcome="homepage">
+					<f:param name="i" value="0" />
+				</p:menuitem>
+				<p:menuitem value="Relational Database" outcome="requestdetails">
+					<f:param name="i" value="1" />
+				</p:menuitem>
+				<p:menuitem value="Data Streaming" outcome="homepage">
+					<f:param name="i" value="2" />
+				</p:menuitem>
+				<p:menuitem value="Social Media" outcome="homepage">
+					<f:param name="i" value="3" />
+				</p:menuitem>
+				<p:menuitem style="position:fixed; right:1%; color: white"
+					value="Logout" action="#{loginBean.logout}">
+				</p:menuitem>
+			</p:tabMenu>
+			<p:separator />
+		</h:form>
+	</div>
+	<h:form id="form">
+		<div id="div2" align="center"
+			style="font-size: 80%; font-family: serif; text-align: left; padding-left: 7%; padding-right: 7%; background-repeat: x; width: auto">
+			<p:panel header="New Request Details"
+				style="background-image:url(images/portal-background-gradient.jpg); background-size: cover;">
+				<p:messages id="msg" autoUpdate="true" showDetail="true"
+					closable="true" />
+				<h:panelGrid columns="2" cellpadding="10">
+					<p:panel id="rpanel" header="Source Details" style="height:400px; ">
+						<h:panelGrid columns="2" columnClasses="label, value">
+							<h:outputText value="Request Name*" />
+							<p:inputText value="#{requestsBean.newRequest.requestname}"
+								required="true" label="RequestName"
+								style="width:343px; margin-left:4px" />
+							<h:outputText value="Server Name*" />
+							<h:panelGrid columns="2">
+								<p:inputText value="#{requestsBean.selectedServer.servername}"
+									required="true" label="ServerName" id="sname"
+									style="width:268px" />
+								<p:commandButton process="singleDT" value="Select"
+									oncomplete="PF('serverDialog').show()" />
+								<p:dialog header="Select a Server" widgetVar="serverDialog"
+									modal="true" showEffect="fade" hideEffect="fade"
+									resizable="false" width="800px">
+									<p:dataTable id="singleDT" var="server"
+										value="#{serversBean.serversList}" selectionMode="single"
+										selection="#{requestsBean.selectedServer}"
+										rowKey="#{server.serverid}" style="table-layout: fixed"
+										resizableColumns="true">
+										<f:facet name="header">
+            List Of Available Servers
+        </f:facet>
+										<p:column headerText="Id">
+											<h:outputText value="#{server.serverid}" />
+										</p:column>
+										<p:column headerText="Server Name">
+											<h:outputText value="#{server.servername}" />
+										</p:column>
+										<p:column headerText="Server Type">
+											<h:outputText value="#{server.servertype}" />
+										</p:column>
+										<p:column headerText="Hostname">
+											<h:outputText value="#{server.hostname}" />
+										</p:column>
+										<p:column headerText="Port">
+											<h:outputText value="#{server.port}" />
+										</p:column>
+										<f:facet name="footer">
+											<p:commandButton process="singleDT" update=":form:sname"
+												value="Select" oncomplete="PF('serverDialog').hide()" />
+										</f:facet>
+									</p:dataTable>
+								</p:dialog>
+							</h:panelGrid>
+							<h:outputText value="Username* " />
+							<p:inputText value="#{requestsBean.newRequest.username}"
+								required="true" label="Username"
+								style="width:343px; margin-left:4px" />
+							<h:outputText value="Password: *" />
+							<p:password value="#{requestsBean.newRequest.password}"
+								required="true" label="Password"
+								style="width:343px; margin-left:4px">
+								<p:ajax event="blur" partialSubmit="true" process="@form"
+									listener="#{requestsBean.fetchDatabases}" update="dbs,msg" />
+							</p:password>
+							<h:outputText value="Database: *" />
+							<p:selectOneMenu id="dbs"
+								value="#{requestsBean.newRequest.sourcedatabase}"
+								style="width:322px; margin-left:4px">
+								<p:ajax listener="#{requestsBean.fetchTables}"
+									update="pickList,msg" />
+								<f:selectItem itemLabel="Select Database" itemValue=""
+									noSelectionOption="true" />
+								<f:selectItems value="#{requestsBean.databases}" />
+							</p:selectOneMenu>
+							<h:outputText value="Tables: *" />
+							<p:pickList id="pickList" value="#{requestsBean.tables}"
+								var="tables" itemLabel="#{tables}" itemValue="#{tables}">
+								<p:ajax event="transfer" process="@form" update="tpanel" />
+							</p:pickList>
+						</h:panelGrid>
+					</p:panel>
+					<p:panel id="tpanel" header="Target Details" style="height:400px">
+						<h:panelGrid columns="2" columnClasses="label, value">
+							<h:outputText value="Target Type* " />
+							<p:selectOneMenu id="targetType"
+								value="#{requestsBean.newRequest.storagetarget}"
+								style="width:322px; margin-left:4px">
+								<p:ajax listener="#{requestsBean.fetchTableDetails}"
+									update="tpanel" />
+								<f:selectItem itemLabel="Select Target" itemValue=""
+									noSelectionOption="true" />
+								<f:selectItem itemLabel="HBase" itemValue="HBase" />
+								<f:selectItem itemLabel="HDFS" itemValue="HDFS" />
+								<f:selectItem itemLabel="Hive" itemValue="Hive" />
+							</p:selectOneMenu>
+							<h:outputText value="Storage Format* "
+								rendered="#{requestsBean.newRequest.storagetarget ne 'HBase'}" />
+							<p:selectOneMenu id="targetFormat"
+								value="#{requestsBean.newRequest.storageformat}"
+								style="width:322px; margin-left:4px"
+								rendered="#{requestsBean.newRequest.storagetarget ne 'HBase'}">
+								<f:selectItem itemLabel="Select format" itemValue=""
+									noSelectionOption="true" />
+								<f:selectItem itemLabel="Avro" itemValue="Avro" />
+								<f:selectItem itemLabel="Text" itemValue="Text" />
+							</p:selectOneMenu>
+							<h:outputText value="Storage Compression* " />
+							<p:selectOneMenu id="targetCompression"
+								value="#{requestsBean.newRequest.storagecompression}"
+								style="width:322px; margin-left:4px">
+								<f:selectItem itemLabel="Select Target" itemValue=""
+									noSelectionOption="true" />
+								<f:selectItem itemLabel="Snappy Codec" itemValue="Snappy Codec" />
+								<f:selectItem itemLabel="No Compression"
+									itemValue="No Compression" />
+							</p:selectOneMenu>
+							<h:outputText id="dir" value="Target Directory* "
+								rendered="#{requestsBean.newRequest.storagetarget ne 'HBase'}" />
+							<p:inputText id="dir1"
+								value="#{requestsBean.newRequest.targetdirectory}"
+								label="TargetDirectory" style="width:343px; margin-left:4px"
+								rendered="#{requestsBean.newRequest.storagetarget ne 'HBase'}" />
+							<h:outputText value="Row Key* "
+								rendered="#{requestsBean.displayrowKey}" />
+							<p:selectOneMenu id="rkey"
+								value="#{requestsBean.newRequest.rowkey}"
+								style="width:322px; margin-left:4px"
+								rendered="#{requestsBean.displayrowKey}">
+								<f:selectItem itemLabel="Select Row Key" itemValue="" />
+								<f:selectItems value="#{requestsBean.columns}" />
+							</p:selectOneMenu>
+							<h:outputLabel for="map" value="Mappers: "
+								rendered="#{requestsBean.displayMappers}" />
+							<p:spinner id="map" value="#{requestsBean.newRequest.mappers}"
+								size="35" style="margin-left:4px"
+								rendered="#{requestsBean.displayMappers}" min="0" max="10">
+								<p:ajax event="blur" update="tpanel" process="@form" />
+							</p:spinner>
+							<h:outputText for="split" value="Split-By Key* "
+								rendered="#{requestsBean.newRequest.mappers gt 1 and requestsBean.displaysplit}" />
+							<p:selectOneMenu id="split"
+								value="#{requestsBean.newRequest.splitbycolumn}"
+								style="width:322px; margin-left:4px"
+								rendered="#{requestsBean.newRequest.mappers gt 1 and requestsBean.displaysplit}">
+								<f:selectItem itemLabel="Select Column" itemValue="" />
+								<f:selectItems value="#{requestsBean.columns}" />
+							</p:selectOneMenu>
+							<h:outputText value="Load Type* " />
+							<p:selectOneMenu id="ltype"
+								value="#{requestsBean.newRequest.loadtype}"
+								style="width:322px; margin-left:4px">
+								<p:ajax event="change" update="tpanel" process="@form" />
+								<f:selectItem itemLabel="Select Load Type" itemValue=""
+									noSelectionOption="true" />
+								<f:selectItems value="#{requestsBean.loadTypes}" />
+							</p:selectOneMenu>
+							<h:outputText for="ccol" value="Criteria Column* "
+								rendered="#{requestsBean.newRequest.loadtype ne 'Full'}" />
+							<p:selectOneMenu id="ccol"
+								value="#{requestsBean.newRequest.criteriacolumn}"
+								style="width:322px; margin-left:4px"
+								rendered="#{requestsBean.newRequest.loadtype ne 'Full'}">
+								<f:selectItem itemLabel="Select Criteria Column" itemValue="" />
+								<f:selectItems value="#{requestsBean.criteriaCols}" />
+							</p:selectOneMenu>
+						</h:panelGrid>
+					</p:panel>
+				</h:panelGrid>
+				<p:column colspan="2">
+					<p:commandButton value="Submit Request"
+						action="#{requestsBean.addRequest}" style="margin-left:43%" />
+				</p:column>
+			</p:panel>
+		</div>
+	</h:form>
+</h:body>
+</html>

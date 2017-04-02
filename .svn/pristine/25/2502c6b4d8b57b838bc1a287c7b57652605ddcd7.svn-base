@@ -1,0 +1,15 @@
+package com.datamigration.dao;
+
+import java.util.List;
+
+import com.datamigration.util.FRDMException;
+
+public interface DaoUtil<T> {
+	public T addUpdate(T obj) throws FRDMException;
+
+	public int delete(Object id) throws FRDMException;
+
+	public List<T> getList() throws FRDMException;
+
+	public T getDetails(Object id) throws FRDMException;
+}

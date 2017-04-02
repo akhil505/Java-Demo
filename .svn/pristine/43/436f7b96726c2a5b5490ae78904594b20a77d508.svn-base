@@ -1,0 +1,124 @@
+package com.datamigration.util;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import java.util.ArrayList;
+import java.util.ResourceBundle;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+
+import org.apache.log4j.Logger;
+
+import com.jcraft.jsch.ChannelExec;
+import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.JSchException;
+import com.jcraft.jsch.Session;
+
+/**
+ * @author DESS
+ *
+ */
+public class ShellUtil {
+
+	/***/
+	final static Logger LOGGER = Logger.getLogger(ShellUtil.class);
+	/***/
+	static JSch jsch;
+	/***/
+	static Session session1;
+	/***/
+	static ChannelExec channelExec;
+
+	/**
+	 * @throws JSchException
+	 * @throws InvalidKeyException
+	 * @throws NoSuchAlgorithmException
+	 * @throws NoSuchPaddingException
+	 * @throws IllegalBlockSizeException
+	 * @throws BadPaddingException
+	 * @throws InvalidKeySpecException
+	 */
+	private static void openSession() throws JSchException,
+			InvalidKeyException, NoSuchAlgorithmException,
+			NoSuchPaddingException, IllegalBlockSizeException,
+			BadPaddingException, InvalidKeySpecException {
+		jsch = new JSch();
+		session1 = jsch.getSession(DataMigrationConstants.SHELL_USER,
+				DataMigrationConstants.SHELL_HOST_NAME,
+				DataMigrationConstants.PORT);
+		ResourceBundle bundle = ResourceBundle.getBundle("parameters");
+		String key = bundle.getString("key");
+		String pwd = PasswordCryption.decrypt(
+				DataMigrationConstants.SHELL_PASSWORD, key);
+		session1.setPassword(pwd);
+		session1.setConfig("StrictHostKeyChecking", "no");
+		LOGGER.info("Establishing Connection...");
+		session1.connect();
+
+		if (session1.isConnected()) {
+			LOGGER.info("Session established");
+		}
+	}
+
+	/**
+	 * @param commandsList
+	 * @param logPath
+	 * @return
+	 * @throws JSchException
+	 * @throws InvalidKeyException
+	 * @throws NoSuchAlgorithmException
+	 * @throws NoSuchPaddingException
+	 * @throws IllegalBlockSizeException
+	 * @throws BadPaddingException
+	 * @throws InvalidKeySpecException
+	 * @throws IOException
+	 */
+	public static String executeShellCommands(ArrayList<String> commandsList,
+			String logPath) throws JSchException, InvalidKeyException,
+			NoSuchAlgorithmException, NoSuchPaddingException,
+			IllegalBlockSizeException, BadPaddingException,
+			InvalidKeySpecException, IOException {
+		String statusCode = DataMigrationConstants.FAILED;
+		openSession();
+		InputStream is = null;
+		HDFSUtil util = new HDFSUtil();
+		for (String command : commandsList) {
+			channelExec = (ChannelExec) session1.openChannel("exec");
+			channelExec.setInputStream(null);
+			channelExec.setCommand(command);
+			LOGGER.info("<><><>" + command);
+			channelExec.connect();
+			is = channelExec.getErrStream();
+			util.writeToOutPutStream(logPath, is);
+			is.close();
+			channelExec.disconnect();
+			int exitStatus = channelExec.getExitStatus();
+			if (exitStatus == 0) {
+				statusCode = DataMigrationConstants.SUCCESS;
+			} else {
+				break;
+			}
+			System.out.println(command + "--" + statusCode);
+		}
+		session1.disconnect();
+		return statusCode;
+	}
+
+	public static void main(String[] args) throws InvalidKeyException,
+			NoSuchAlgorithmException, NoSuchPaddingException,
+			IllegalBlockSizeException, BadPaddingException,
+			InvalidKeySpecException, JSchException, IOException {
+		ArrayList<String> ar = new ArrayList<String>();
+		ar.add(0, "echo \"Sasi\"");
+		ar.add(1, "echo \"Chakri\"");
+		ar.add(2, "date");
+		ar.add(3, "sqoop-import");
+		ar.add(4, "echo $?");
+		ShellUtil.executeShellCommands(ar, "/tmp/test.log");
+	}
+}

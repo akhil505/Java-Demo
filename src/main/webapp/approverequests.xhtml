@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml"
+	xmlns:f="http://java.sun.com/jsf/core"
+	xmlns:h="http://java.sun.com/jsf/html"
+	xmlns:ui="http://java.sun.com/jsf/facelets"
+	xmlns:p="http://primefaces.org/ui">
+<h:head>
+	<title>Request Details</title>
+</h:head>
+<h:body
+	style="background-image:url(images/background_tata.jpg); background-repeat: no-repeat; background-size: cover">
+	<div id="div1"
+		style="font-size: 70%; font-family: serif; text-align: left; background-repeat: x; padding-top: 5%; width: auto;">
+		<h:form>
+			<p:tabMenu activeIndex="1">
+				<p:menuitem value="Server Details" outcome="serverdetails">
+					<f:param name="i" value="0" />
+				</p:menuitem>
+				<p:menuitem value="Request Details" outcome="approverequests">
+					<f:param name="i" value="1" />
+				</p:menuitem>
+				<p:menuitem style="position:fixed; right:1%; color: white"
+					value="Logout" action="#{loginBean.logout}">
+				</p:menuitem>
+			</p:tabMenu>
+			<p:separator />
+		</h:form>
+	</div>
+	<div id="div2" align="center"
+		style="font-family: serif; text-align: left; padding-left: 2%; padding-right: 2%; background-repeat: x; width: auto">
+		<h:form id="form">
+			<p:panel widgetVar="requestPanel" header="List of Pending Requests"
+				style="background-image:url(images/portal-background-gradient.jpg); background-size: cover;">
+				<p:dataTable id="basicDT" var="req" widgetVar="reqTab"
+					value="#{requestsBean.requestList}" paginator="true" rows="5"
+					style="font-size:80%;width:auto; table-layout:fixed"
+					resizableColumns="true">
+					<f:facet name="header">
+						<p:outputPanel style="text-align:right">
+							<h:outputText value="Search all fields:" />
+							<p:inputText id="globalFilter" onkeyup="PF('reqTab').filter()"
+								style="width:150px" placeholder="Enter keyword" />
+						</p:outputPanel>
+					</f:facet>
+					<p:column headerText="Request Name">
+						<h:outputText value="#{req.requestname}" />
+					</p:column>
+					<p:column headerText="Hostname">
+						<h:outputText value="#{req.serverhost}" />
+					</p:column>
+					<p:column headerText="Server Type" filterBy="#{req.type}"
+						filterMatchMode="contains">
+						<h:outputText value="#{req.type}" />
+					</p:column>
+					<p:column headerText="Database">
+						<h:outputText value="#{req.sourcedatabase}" />
+					</p:column>
+					<p:column headerText="Tables">
+						<h:outputText value="#{req.sourcetables}" />
+					</p:column>
+					<p:column headerText="Target Type" filterMatchMode="exact"
+						filterBy="#{req.storagetarget}">
+						<f:facet name="filter">
+							<p:selectOneMenu onchange="PF('reqTab').filter()">
+								<f:selectItem itemLabel="Select One" itemValue="#{null}"
+									noSelectionOption="true" />
+								<f:selectItem itemLabel="HBase" itemValue="HBase" />
+								<f:selectItem itemLabel="HDFS" itemValue="HDFS" />
+								<f:selectItem itemLabel="Hive" itemValue="Hive" />
+							</p:selectOneMenu>
+						</f:facet>
+						<h:outputText value="#{req.storagetarget}" />
+					</p:column>
+					<p:column headerText="Load Type" filterBy="#{req.loadtype}"
+						filterMatchMode="contains">
+						<h:outputText value="#{req.loadtype}" />
+					</p:column>
+					<p:column style="width:6%; text-align: center" headerText="View">
+						<p:commandButton process="basicDT" update=":form:viewRequest"
+							oncomplete="PF('viewRequestDialog').show()" icon="ui-icon-search"
+							title="View">
+							<f:setPropertyActionListener value="#{req}"
+								target="#{requestsBean.selectedRequest}" />
+						</p:commandButton>
+					</p:column>
+				</p:dataTable>
+			</p:panel>
+			<p:dialog header="View Request" widgetVar="viewRequestDialog"
+				modal="true" showEffect="fade" hideEffect="fade" resizable="false"
+				style="text-align:center; background-size: cover; background-image:url(images/portal-background-gradient.jpg);">
+				<p:panel id="viewRequest"
+					style="background-image:url(images/portal-background-gradient.jpg); background-size: cover;">
+					<ui:include src="viewrequestdetails.xhtml"></ui:include>
+					<p:commandButton icon="ui-icon-check" value="Activate Request"
+						iconPos="right" action="#{requestsBean.approveRequest}"
+						onclick="requestdetails"
+						rendered="#{requestsBean.selectedRequest.provisionstatus eq 'INACTIVE'}">
+					</p:commandButton>
+				</p:panel>
+			</p:dialog>
+		</h:form>
+	</div>
+</h:body>
+</html>

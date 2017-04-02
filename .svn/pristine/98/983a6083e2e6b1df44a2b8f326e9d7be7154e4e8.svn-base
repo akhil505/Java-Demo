@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml"
+	xmlns:f="http://java.sun.com/jsf/core"
+	xmlns:h="http://java.sun.com/jsf/html"
+	xmlns:ui="http://java.sun.com/jsf/facelets"
+	xmlns:p="http://primefaces.org/ui">
+<h:head>
+	<title>Server Details</title>
+</h:head>
+<h:body
+	style="font-size: 70%;  font-family: serif; background-image:url(images/background_tata.jpg); background-repeat: no-repeat; background-size: cover">
+	<div id="div1"
+		style="text-align: left; background-repeat: x; padding-top: 5%;  width: auto;">
+		<h:form>
+			<p:tabMenu activeIndex="0">
+				<p:menuitem value="Server Details" outcome="serverdetails">
+					<f:param name="i" value="0" />
+				</p:menuitem>
+				<p:menuitem value="Request Details" outcome="approverequests">
+					<f:param name="i" value="1" />
+				</p:menuitem>
+				<p:menuitem style="position:fixed; right:1%; color: white" value="Logout" action="#{loginBean.logout}">
+				</p:menuitem>
+			</p:tabMenu>
+			<p:separator />
+		</h:form>
+	</div>
+	<h:form id="form">
+		<p:commandButton icon="ui-icon-plusthick" value="Add New Server"
+			style="margin-left:2%; margin-top:2%; margin-bottom:0.3%"
+			oncomplete="PF('newServer').show()" />
+		<div id="div2" align="center"
+			style="font-family: serif; text-align: center; padding-left: 2%; padding-right: 2%; width: auto">
+			<p:panel widgetVar="requestPanel" header="List of Available Servers"
+				style="background-image:url(images/portal-background-gradient.jpg); background-size: cover;">
+				<p:dataTable id="singleDT" var="server"
+					value="#{serversBean.serversList}" selectionMode="single"
+					selection="#{serversBean.selectedServer}"
+					rowKey="#{server.serverid}">
+					<f:facet name="header">
+						<p:outputPanel style="text-align:right">
+							<h:outputText value="Search all fields:" />
+							<p:inputText id="globalFilter" onkeyup="PF('reqTab').filter()"
+								style="width:150px" placeholder="Enter keyword" />
+						</p:outputPanel>
+					</f:facet>
+					<p:column headerText="Server Name">
+						<h:outputText value="#{server.servername}" />
+					</p:column>
+					<p:column headerText="Server Type" filterMatchMode="exact"
+						filterBy="#{server.servertype}">
+						<f:facet name="filter">
+							<p:selectOneMenu onchange="PF('reqTab').filter()">
+								<f:selectItem itemLabel="Select One" itemValue="#{null}"
+									noSelectionOption="true" />
+								<f:selectItem itemLabel="MYSQL" itemValue="MYSQL" />
+							</p:selectOneMenu>
+						</f:facet>
+						<h:outputText value="#{server.servertype}" />
+					</p:column>
+					<p:column headerText="Hostname">
+						<h:outputText value="#{server.hostname}" />
+					</p:column>
+					<p:column headerText="Port">
+						<h:outputText value="#{server.port}" />
+					</p:column>
+					<f:facet name="footer">
+
+					</f:facet>
+				</p:dataTable>
+			</p:panel>
+		</div>
+		<p:dialog header="New Server" widgetVar="newServer" modal="true"
+			showEffect="fade" hideEffect="fade" resizable="false">
+			<p:panel id="tpanel" header="Server Details">
+				<p:messages id="msg1" showDetail="true" autoUpdate="true"
+					closable="true" />
+				<h:panelGrid columns="2">
+					<h:outputText value="Server Type* " />
+					<p:selectOneMenu id="serverType"
+						value="#{serversBean.newServer.servertype}"
+						style="width:335px; margin-left:4px">
+						<f:selectItem itemLabel="Select Server Type" itemValue=""
+							noSelectionOption="true" />
+						<f:selectItem itemLabel="MYSQL" itemValue="MYSQL" />
+					</p:selectOneMenu>
+					<h:outputText value="Server Name* " />
+					<p:inputText id="servername"
+						value="#{serversBean.newServer.servername}"
+						style="width:350px; margin-left:4px"
+						title="Enter a name for the server" />
+					<h:outputText value="Server Host* " />
+					<p:inputText value="#{serversBean.newServer.hostname}"
+						id="serverhost" style="width:350px; margin-left:4px"
+						title="Enter the hostname of the server" />
+					<h:outputText value="Server Port* " />
+					<p:inputText value="#{serversBean.newServer.port}" id="serverport"
+						style="width:350px; margin-left:4px" title="Enter the port number" />
+				</h:panelGrid>
+				<br />
+				<p:column colspan="2">
+					<p:commandButton value="Add Server"
+						action="#{serversBean.addServer}" style="margin-left:40%" />
+				</p:column>
+			</p:panel>
+		</p:dialog>
+	</h:form>
+</h:body>
+</html>

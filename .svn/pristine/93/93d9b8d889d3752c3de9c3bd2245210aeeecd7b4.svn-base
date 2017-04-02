@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml"
+	xmlns:f="http://java.sun.com/jsf/core"
+	xmlns:h="http://java.sun.com/jsf/html"
+	xmlns:ui="http://java.sun.com/jsf/facelets"
+	xmlns:p="http://primefaces.org/ui"
+	xmlns:pe="http://primefaces.org/ui/extensions">
+<h:head>
+	<title>Flume Request Details</title>
+</h:head>
+<h:body
+	style="background-image:url(images/background_tata.jpg); background-repeat: no-repeat; background-size: cover">
+	<h:form>
+		<div id="div1"
+			style="font-size: 70%; font-family: serif; text-align: left; background-repeat: x; padding-top: 5%; width: auto;">
+			<p:tabMenu activeIndex="2">
+				<p:menuitem value="Home Page" outcome="homepage">
+					<f:param name="i" value="0" />
+				</p:menuitem>
+				<p:menuitem value="Relational Database" outcome="requestdetails">
+					<f:param name="i" value="1" />
+				</p:menuitem>
+				<p:menuitem value="Data Streaming" outcome="homepage">
+					<f:param name="i" value="2" />
+				</p:menuitem>
+				<p:menuitem value="Social Media" outcome="homepage">
+					<f:param name="i" value="3" />
+				</p:menuitem>
+			</p:tabMenu>
+			<p:separator />
+		</div>
+		<div id="div2" align="center"
+			style="font-size: 80%; font-family: serif; text-align: left; padding-left: 7%; padding-right: 7%; background-repeat: x; width: auto">
+			<p:panel header="Configure Flume Agent"
+				style="background-image:url(images/portal-background-gradient.jpg); background-size: cover;">
+				<pe:masterDetail id="masterDetail"
+					level="#{flowWizard.currentLevel}" showBreadcrumb="false">
+					<f:facet name="header">
+						<p:messages showDetail="true" />
+						<h:panelGroup layout="block" style="margin-top: 10px;">
+							<h:panelGroup
+								styleClass="levelTitle ui-state-default ui-corner-all
+                                  #{flowWizard.currentLevel eq 1 ? 'ui-state-hover' : ''}">
+								<h:outputText value="Server details" />
+							</h:panelGroup>
+							<h:panelGroup
+								styleClass="levelTitle ui-state-default ui-corner-all
+                                  #{flowWizard.currentLevel eq 2 ? 'ui-state-hover' : ''}">
+								<h:outputText value="Source Details" />
+							</h:panelGroup>
+							<h:panelGroup
+								styleClass="levelTitle ui-state-default ui-corner-all
+                                  #{flowWizard.currentLevel eq 3 ? 'ui-state-hover' : ''}">
+								<h:outputText value="Channel details" />
+							</h:panelGroup>
+							<h:panelGroup
+								styleClass="levelTitle ui-state-default ui-corner-all
+                                  #{flowWizard.currentLevel eq 4 ? 'ui-state-hover' : ''}">
+								<h:outputText value="Sink Details" />
+							</h:panelGroup>
+							<h:panelGroup
+								styleClass="levelTitle ui-state-default ui-corner-all
+                                  #{flowWizard.currentLevel eq 5 ? 'ui-state-hover' : ''}">
+								<h:outputText value="Confirmation" />
+							</h:panelGroup>
+						</h:panelGroup>
+					</f:facet>
+					<pe:masterDetailLevel level="1">
+						<p:panel header="Select a Server">
+							<p:dataTable id="singleDT" var="server"
+								value="#{flowWizard.serverDetailsList}" selectionMode="single"
+								selection="#{flowWizard.selectedServer}"
+								rowKey="#{server.serverid}">
+								<f:facet name="header">
+            List Of Available Servers
+        </f:facet>
+								<p:column headerText="Id">
+									<h:outputText value="#{server.serverid}" />
+								</p:column>
+								<p:column headerText="Server Name">
+									<h:outputText value="#{server.servername}" />
+								</p:column>
+								<p:column headerText="Server Type">
+									<h:outputText value="#{server.servertype}" />
+								</p:column>
+								<p:column headerText="Hostname">
+									<h:outputText value="#{server.hostname}" />
+								</p:column>
+								<p:column headerText="Port">
+									<h:outputText value="#{server.port}" />
+								</p:column>
+							</p:dataTable>
+
+						</p:panel>
+						<p:commandButton value="Next" process="masterDetail"
+							style="margin-top: 10px;" icon="ui-icon-arrowthick-1-e">
+							<pe:selectDetailLevel level="2" />
+						</p:commandButton>
+					</pe:masterDetailLevel>
+
+					<pe:masterDetailLevel level="2">
+						<p:panel header="Source Details">
+							<h:panelGrid columns="2" cellpadding="10">
+								<p:panel id="lpanel" style="height:300px; border: none;">
+									<h:panelGrid columns="2"
+										columnClasses="formColumn1,formColumn2">
+										<h:outputText value="Source: " />
+										<p:selectOneMenu id="src"
+											value="#{flowWizard.flumeBean.flumeSourceBean.srcSelected}"
+											style="width:322px; margin-left:4px">
+											<f:ajax render="rpanel" />
+											<f:selectItem itemLabel="Select Source" itemValue=""
+												noSelectionOption="true" />
+											<f:selectItems value="#{flowWizard.flumeBean.sourceList}" />
+										</p:selectOneMenu>
+									</h:panelGrid>
+								</p:panel>
+								<p:panel id="rpanel" style="height:300px;border: none;">
+									<h:panelGrid columns="2"
+										columnClasses="formColumn1,formColumn2">
+										<h:outputText value="Spool Directory Path: "
+											rendered="#{flowWizard.flumeBean.flumeSourceBean.srcSelected eq'Spooling Directory'}" />
+										<p:inputText
+											value="#{flowWizard.flumeBean.flumeSourceBean.spoolDirectory.spoolDir}"
+											required="true" label="path"
+											style="width:343px; margin-left:4px"
+											rendered="#{flowWizard.flumeBean.flumeSourceBean.srcSelected eq 'Spooling Directory'}" />
+										<h:outputText value="maxBackoff: "
+											rendered="#{flowWizard.flumeBean.flumeSourceBean.srcSelected eq'Spooling Directory'}" />
+										<p:inputText
+											value="#{flowWizard.flumeBean.flumeSourceBean.spoolDirectory.maxBackoff}"
+											label="maxBackoff" style="width:343px; margin-left:4px"
+											rendered="#{flowWizard.flumeBean.flumeSourceBean.srcSelected eq 'Spooling Directory'}" />
+										<h:outputText value="batchSize: "
+											rendered="#{flowWizard.flumeBean.flumeSourceBean.srcSelected eq'Spooling Directory'}" />
+										<p:inputText
+											value="#{flowWizard.flumeBean.flumeSourceBean.spoolDirectory.batchSize}"
+											label="batchSize" style="width:343px; margin-left:4px"
+											rendered="#{flowWizard.flumeBean.flumeSourceBean.srcSelected eq 'Spooling Directory'}" />
+										<h:outputText value="fileSuffix: "
+											rendered="#{flowWizard.flumeBean.flumeSourceBean.srcSelected eq'Spooling Directory'}" />
+										<h:outputText
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											value="#{flowWizard.flumeBean.flumeSourceBean.spoolDirectory.fileSuffix}"
+											label="suffix"
+											rendered="#{flowWizard.flumeBean.flumeSourceBean.srcSelected eq 'Spooling Directory'}" />
+										<h:outputText value="deletePolicy: "
+											rendered="#{flowWizard.flumeBean.flumeSourceBean.srcSelected eq'Spooling Directory'}" />
+										<h:outputText
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											value="#{flowWizard.flumeBean.flumeSourceBean.spoolDirectory.deletePolicy}"
+											label="deletePolicy"
+											rendered="#{flowWizard.flumeBean.flumeSourceBean.srcSelected eq 'Spooling Directory'}" />
+										<h:outputText value="trackerDir: "
+											rendered="#{flowWizard.flumeBean.flumeSourceBean.srcSelected eq'Spooling Directory'}" />
+										<h:outputText
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											value="#{flowWizard.flumeBean.flumeSourceBean.spoolDirectory.trackerDir}"
+											label="path"
+											rendered="#{flowWizard.flumeBean.flumeSourceBean.srcSelected eq 'Spooling Directory'}" />
+										<h:outputText value="consumeOrder: "
+											rendered="#{flowWizard.flumeBean.flumeSourceBean.srcSelected eq'Spooling Directory'}" />
+										<h:outputText
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											value="#{flowWizard.flumeBean.flumeSourceBean.spoolDirectory.consumeOrder}"
+											rendered="#{flowWizard.flumeBean.flumeSourceBean.srcSelected eq 'Spooling Directory'}" />
+										<h:outputText value="inputCharset: "
+											rendered="#{flowWizard.flumeBean.flumeSourceBean.srcSelected eq'Spooling Directory'}" />
+										<h:outputText
+											value="#{flowWizard.flumeBean.flumeSourceBean.spoolDirectory.inputCharset}"
+											label="charset"
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											rendered="#{flowWizard.flumeBean.flumeSourceBean.srcSelected eq 'Spooling Directory'}" />
+
+									</h:panelGrid>
+								</p:panel>
+							</h:panelGrid>
+
+						</p:panel>
+						<p:commandButton value="Back" style="margin-top: 10px;"
+							icon="ui-icon-arrowthick-1-w" process="@this" immediate="true">
+							<pe:selectDetailLevel step="-1" />
+						</p:commandButton>
+						<p:commandButton value="Next" process="masterDetail"
+							style="margin-top: 10px;" icon="ui-icon-arrowthick-1-e">
+							<pe:selectDetailLevel level="3" />
+						</p:commandButton>
+					</pe:masterDetailLevel>
+
+					<pe:masterDetailLevel level="3">
+						<p:panel header="Channel details">
+							<h:panelGrid columns="2" cellpadding="10">
+								<p:panel id="lchnlpanel" style="height:300px; border: none;">
+									<h:panelGrid columns="2"
+										columnClasses="formColumn1,formColumn2">
+										<h:outputText value="Channel: *" />
+										<p:selectOneMenu id="chnl"
+											value="#{flowWizard.flumeBean.flumeChannel.chnlSelected}"
+											style="width:322px; margin-left:4px">
+											<f:ajax render="rchnlpanel" />
+											<f:selectItem itemLabel="Select Channel" itemValue=""
+												noSelectionOption="true" />
+											<f:selectItems value="#{flowWizard.flumeBean.channelList}" />
+										</p:selectOneMenu>
+									</h:panelGrid>
+								</p:panel>
+								<p:panel id="rchnlpanel" style="height:300px;border: none;">
+									<h:panelGrid columns="2"
+										columnClasses="formColumn1,formColumn2">
+										<h:outputText value="transactionCapacity: "
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq'File'}" />
+										<p:inputText
+											value="#{flowWizard.flumeBean.flumeChannel.fileChannel.transactionCapacity}"
+											label="dataDirs" style="width:343px; margin-left:4px"
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq 'File'}" />
+										<h:outputText value="minimumRequiredSpace: "
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq'File'}" />
+										<p:inputText
+											value="#{flowWizard.flumeBean.flumeChannel.fileChannel.minimumRequiredSpace}"
+											label="maxFileSize" style="width:343px; margin-left:4px"
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq 'File'}" />
+										<h:outputText value="capacity: "
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq'File'}" />
+										<p:inputText
+											value="#{flowWizard.flumeBean.flumeChannel.fileChannel.capacity}"
+											label="maxFileSize" style="width:343px; margin-left:4px"
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq 'File'}" />
+										<h:outputText value="keepAlive: "
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq'File'}" />
+										<p:inputText
+											value="#{flowWizard.flumeBean.flumeChannel.fileChannel.keepAlive}"
+											label="maxFileSize" style="width:343px; margin-left:4px"
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq 'File'}" />
+										<h:outputText value="checkpointDir: "
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq'File'}" />
+										<h:outputText
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											value="#{flowWizard.flumeBean.flumeChannel.fileChannel.checkpointDir}"
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq 'File'}" />
+										<h:outputText value="useDualCheckpoints: "
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq'File'}" />
+										<h:outputText
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											value="#{flowWizard.flumeBean.flumeChannel.fileChannel.useDualCheckpoints}"
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq 'File'}" />
+										<h:outputText value="dataDirs: "
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq'File'}" />
+										<h:outputText
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											value="#{flowWizard.flumeBean.flumeChannel.fileChannel.dataDirs}"
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq 'File'}" />
+										<h:outputText value="checkpointInterval: "
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq'File'}" />
+										<h:outputText
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											value="#{flowWizard.flumeBean.flumeChannel.fileChannel.checkpointInterval}"
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq 'File'}" />
+										<h:outputText value="checkpointOnClose: "
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq'File'}" />
+										<h:outputText
+											value="#{flowWizard.flumeBean.flumeChannel.fileChannel.checkpointOnClose}"
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq 'File'}" />
+
+										<h:outputText value="capacity: "
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq'Memory'}" />
+										<p:inputText
+											value="#{flowWizard.flumeBean.flumeChannel.memChannel.capacity}"
+											label="maxFileSize" style="width:343px; margin-left:4px"
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq 'Memory'}" />
+										<h:outputText value="transactionCapacity: "
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq'Memory'}" />
+										<p:inputText
+											value="#{flowWizard.flumeBean.flumeChannel.memChannel.transactionCapacity}"
+											label="maxFileSize" style="width:343px; margin-left:4px"
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq 'Memory'}" />
+										<h:outputText value="keepAlive: "
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq'Memory'}" />
+										<p:inputText
+											value="#{flowWizard.flumeBean.flumeChannel.memChannel.keepAlive}"
+											label="maxFileSize" style="width:343px; margin-left:4px"
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq 'Memory'}" />
+										<h:outputText value="byteCapacityBufferPercentage:  "
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq'Memory'}" />
+										<p:inputText
+											value="#{flowWizard.flumeBean.flumeChannel.memChannel.byteCapacityBufferPercentage}"
+											label="maxFileSize" style="width:343px; margin-left:4px"
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq 'Memory'}" />
+									</h:panelGrid>
+								</p:panel>
+							</h:panelGrid>
+						</p:panel>
+						<p:commandButton value="Back" style="margin-top: 10px;"
+							icon="ui-icon-arrowthick-1-w" process="@this" immediate="true">
+							<pe:selectDetailLevel step="-1" />
+						</p:commandButton>
+						<p:commandButton value="Next" process="masterDetail"
+							style="margin-top: 10px;" icon="ui-icon-arrowthick-1-e">
+							<pe:selectDetailLevel level="4" />
+						</p:commandButton>
+					</pe:masterDetailLevel>
+
+					<pe:masterDetailLevel level="4">
+
+						<p:panel header="Sink details">
+							<h:panelGrid columns="2" cellpadding="10">
+								<p:panel id="lsinkpanel" style="height:300px; border: none;">
+									<h:panelGrid columns="2"
+										columnClasses="formColumn1,formColumn2">
+										<h:outputText value="Sink: " />
+										<p:selectOneMenu id="sink"
+											value="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected}"
+											style="width:322px; margin-left:4px">
+											<f:ajax render="rsinkpanel" />
+											<f:selectItem itemLabel="Select Sink" itemValue=""
+												noSelectionOption="true" />
+											<f:selectItems value="#{flowWizard.flumeBean.sinkList}" />
+										</p:selectOneMenu>
+									</h:panelGrid>
+								</p:panel>
+								<p:panel id="rsinkpanel" style="height:300px;border: none;">
+									<h:panelGrid columns="2"
+										columnClasses="formColumn1,formColumn2">
+										<h:outputText value="hdfs Directory Path: "
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<p:inputText
+											value="#{flowWizard.flumeBean.flumeSinkBean.hdfsSink.path}"
+											required="true" label="path"
+											style="width:343px; margin-left:4px"
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<h:outputText value="rollInterval: "
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<p:inputText
+											value="#{flowWizard.flumeBean.flumeSinkBean.hdfsSink.rollInterval}"
+											label="rollInterval" style="width:343px; margin-left:4px"
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<h:outputText value="rollSize "
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<p:inputText
+											value="#{flowWizard.flumeBean.flumeSinkBean.hdfsSink.rollSize}"
+											label="rollInterval" style="width:343px; margin-left:4px"
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<h:outputText value="rollCount: "
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<p:inputText
+											value="#{flowWizard.flumeBean.flumeSinkBean.hdfsSink.rollCount}"
+											label="rollCount" style="width:343px; margin-left:4px"
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<h:outputText value="batchSize: "
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<p:inputText
+											value="#{flowWizard.flumeBean.flumeSinkBean.hdfsSink.batchSize}"
+											label="batchSize" style="width:343px; margin-left:4px"
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<h:outputText value="file Suffix: "
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<p:inputText
+											value="#{flowWizard.flumeBean.flumeSinkBean.hdfsSink.fileSuffix}"
+											label="file suffix" style="width:343px; margin-left:4px"
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<h:outputText value="inUsePrefix: "
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<p:inputText
+											value="#{flowWizard.flumeBean.flumeSinkBean.hdfsSink.inUsePrefix}"
+											label="inUsePrefix" style="width:343px; margin-left:4px"
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<h:outputText value="codeC: "
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<p:selectOneMenu id="codec"
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}"
+											value="#{flowWizard.flumeBean.flumeSinkBean.hdfsSink.codeC}"
+											style="width:322px; margin-left:4px">
+											<f:selectItem itemLabel="Select codec" itemValue=""
+												noSelectionOption="true" />
+											<f:selectItems
+												value="#{flowWizard.flumeBean.flumeSinkBean.hdfsSink.codeCList}" />
+										</p:selectOneMenu>
+										<h:outputText value="minBlockReplicas: "
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<p:inputText
+											value="#{flowWizard.flumeBean.flumeSinkBean.hdfsSink.minBlockReplicas}"
+											label="minBlockReplicas" style="width:343px; margin-left:4px"
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<h:outputText value="file prefix:  "
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<h:outputText
+											value="#{flowWizard.flumeBean.flumeSinkBean.hdfsSink.filePrefix}"
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<h:outputText value="inUseSuffix:  "
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<h:outputText
+											value="#{flowWizard.flumeBean.flumeSinkBean.hdfsSink.inUseSuffix}"
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+									</h:panelGrid>
+								</p:panel>
+							</h:panelGrid>
+						</p:panel>
+						<p:commandButton value="Back" style="margin-top: 10px;"
+							icon="ui-icon-arrowthick-1-w" process="@this" immediate="true">
+							<pe:selectDetailLevel step="-1" />
+						</p:commandButton>
+						<p:commandButton value="Next" process="masterDetail"
+							style="margin-top: 10px;" icon="ui-icon-arrowthick-1-e">
+							<pe:selectDetailLevel level="5" />
+						</p:commandButton>
+					</pe:masterDetailLevel>
+					<pe:masterDetailLevel level="5">
+						<p:panel header="confirmation">
+							<h:panelGrid id="confirmation" columns="3"
+								columnClasses="formColumn1,formColumn2,formColumn3">
+								<p:panel id="srcpanel" style="height:300px; border: none;">
+									<h:panelGrid columns="2"
+										columnClasses="formColumn1,formColumn2">
+										<h:outputText value="Source: " />
+										<h:outputText
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											value="#{flowWizard.flumeBean.flumeSourceBean.srcSelected}" />
+										<h:outputText value="maxBackoff: "
+											rendered="#{flowWizard.flumeBean.flumeSourceBean.srcSelected eq'Spooling Directory'}" />
+										<h:outputText
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											value="#{flowWizard.flumeBean.flumeSourceBean.spoolDirectory.maxBackoff}"
+											rendered="#{flowWizard.flumeBean.flumeSourceBean.srcSelected eq 'Spooling Directory'}" />
+										<h:outputText value="batchSize: "
+											rendered="#{flowWizard.flumeBean.flumeSourceBean.srcSelected eq'Spooling Directory'}" />
+										<h:outputText
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											value="#{flowWizard.flumeBean.flumeSourceBean.spoolDirectory.batchSize}"
+											rendered="#{flowWizard.flumeBean.flumeSourceBean.srcSelected eq 'Spooling Directory'}" />
+									</h:panelGrid>
+								</p:panel>
+								<p:panel id="chnlpanel" style="height:300px; border: none;">
+									<h:panelGrid columns="2"
+										columnClasses="formColumn1,formColumn2">
+										<h:outputText value="Channel: " />
+										<h:outputText
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											value="#{flowWizard.flumeBean.flumeChannel.chnlSelected}" />
+										<h:outputText value="transactionCapacity: "
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq'File'}" />
+										<h:outputText
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											value="#{flowWizard.flumeBean.flumeChannel.fileChannel.transactionCapacity}"
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq 'File'}" />
+										<h:outputText value="minimumRequiredSpace: "
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq'File'}" />
+										<h:outputText
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											value="#{flowWizard.flumeBean.flumeChannel.fileChannel.minimumRequiredSpace}"
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq 'File'}" />
+										<h:outputText value="capacity: "
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq'File'}" />
+										<h:outputText
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											value="#{flowWizard.flumeBean.flumeChannel.fileChannel.capacity}"
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq 'File'}" />
+										<h:outputText value="keepAlive: "
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq'File'}" />
+										<h:outputText
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											value="#{flowWizard.flumeBean.flumeChannel.fileChannel.keepAlive}"
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq 'File'}" />
+										<h:outputText value="capacity: "
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq'Memory'}" />
+										<h:outputText
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											value="#{flowWizard.flumeBean.flumeChannel.memChannel.capacity}"
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq 'Memory'}" />
+										<h:outputText value="transactionCapacity: "
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq'Memory'}" />
+										<h:outputText
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											value="#{flowWizard.flumeBean.flumeChannel.memChannel.transactionCapacity}"
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq 'Memory'}" />
+										<h:outputText value="keepAlive: "
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq'Memory'}" />
+										<h:outputText
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											value="#{flowWizard.flumeBean.flumeChannel.memChannel.keepAlive}"
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq 'Memory'}" />
+										<h:outputText value="byteCapacityBufferPercentage:  "
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq'Memory'}" />
+										<h:outputText
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											value="#{flowWizard.flumeBean.flumeChannel.memChannel.byteCapacityBufferPercentage}"
+											rendered="#{flowWizard.flumeBean.flumeChannel.chnlSelected eq 'Memory'}" />
+									</h:panelGrid>
+								</p:panel>
+								<p:panel id="sinkpanel" style="height:300px; border: none;">
+									<h:panelGrid columns="2"
+										columnClasses="formColumn1,formColumn2">
+										<h:outputText value="Sink: " />
+										<h:outputText
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											value="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected}" />
+										<h:outputText value="hdfs Directory Path: "
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<h:outputText
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											value="#{flowWizard.flumeBean.flumeSinkBean.hdfsSink.path}"
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<h:outputText value="rollInterval: "
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<h:outputText
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											value="#{flowWizard.flumeBean.flumeSinkBean.hdfsSink.rollInterval}"
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<h:outputText value="rollSize "
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<h:outputText
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											value="#{flowWizard.flumeBean.flumeSinkBean.hdfsSink.rollSize}"
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<h:outputText value="rollCount: "
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<h:outputText
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											value="#{flowWizard.flumeBean.flumeSinkBean.hdfsSink.rollCount}"
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<h:outputText value="batchSize: "
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<h:outputText
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											value="#{flowWizard.flumeBean.flumeSinkBean.hdfsSink.batchSize}"
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<h:outputText value="file Suffix: "
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<h:outputText
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											value="#{flowWizard.flumeBean.flumeSinkBean.hdfsSink.fileSuffix}"
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<h:outputText value="inUsePrefix: "
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<h:outputText
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											value="#{flowWizard.flumeBean.flumeSinkBean.hdfsSink.inUsePrefix}"
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<h:outputText value="codeC: "
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<h:outputText
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											value="#{flowWizard.flumeBean.flumeSinkBean.hdfsSink.codeC}"
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<h:outputText value="minBlockReplicas: "
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+										<h:outputText
+											style="width:343px; margin-left:4px;font-family: Lucida Grande, Lucida Sans, Arial, sans-serif;color:#2E6E9E"
+											value="#{flowWizard.flumeBean.flumeSinkBean.hdfsSink.minBlockReplicas}"
+											rendered="#{flowWizard.flumeBean.flumeSinkBean.sinkSelected eq 'hdfs'}" />
+									</h:panelGrid>
+								</p:panel>
+							</h:panelGrid>
+						</p:panel>
+						<p:commandButton value="Back" style="margin-top: 10px;"
+							icon="ui-icon-arrowthick-1-w" process="@this" immediate="true">
+							<pe:selectDetailLevel step="-1" />
+						</p:commandButton>
+						<p:commandButton value="Submit" process="masterDetail"
+							actionListener="#{flowWizard.save}" style="margin-top: 10px;"
+							icon="ui-icon-disk">
+							<pe:selectDetailLevel level="5" />
+						</p:commandButton>
+					</pe:masterDetailLevel>
+				</pe:masterDetail>
+			</p:panel>
+		</div>
+	</h:form>
+</h:body>
+</html>

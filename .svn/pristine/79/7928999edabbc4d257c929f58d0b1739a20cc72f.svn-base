@@ -1,0 +1,3 @@
+baseURI=http://localhost:8080/DataMigration-1.0-SNAPSHOT/rest/
+key=datamigrationenc
+hdfspath=/user/hdfs/datamigration

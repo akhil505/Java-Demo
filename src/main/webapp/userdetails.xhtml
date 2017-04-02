@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml"
+	xmlns:f="http://java.sun.com/jsf/core"
+	xmlns:h="http://java.sun.com/jsf/html"
+	xmlns:ui="http://java.sun.com/jsf/facelets"
+	xmlns:p="http://primefaces.org/ui">
+<h:head>
+	<title>Server Details</title>
+</h:head>
+<h:body
+	style="font-size: 70%;  font-family: serif; background-image:url(images/background_tata.jpg); background-repeat: no-repeat; background-size: cover">
+	<div id="div1"
+		style="text-align: left; background-repeat: x; padding-top: 5%; width: auto;">
+		<h:form>
+			<p:tabMenu activeIndex="0">
+				<p:menuitem value="Server Details" outcome="serverdetails">
+					<f:param name="i" value="0" />
+				</p:menuitem>
+				<p:menuitem value="Request Details" outcome="approverequests">
+					<f:param name="i" value="1" />
+				</p:menuitem>
+				<p:menuitem value="User Management" outcome="userdetails">
+					<f:param name="i" value="2" />
+				</p:menuitem>
+				<p:menuitem style="position:fixed; right:1%; color: white"
+					value="Logout" action="#{loginBean.logout}">
+				</p:menuitem>
+			</p:tabMenu>
+			<p:separator />
+		</h:form>
+	</div>
+	<h:form id="form">
+		<p:commandButton icon="ui-icon-plusthick" value="Add New User"
+			style="margin-left:2%; margin-top:2%; margin-bottom:0.3%"
+			oncomplete="PF('newUser').show()" />
+		<div id="div2" align="center"
+			style="font-family: serif; text-align: center; padding-left: 2%; padding-right: 2%; width: auto">
+			<p:panel widgetVar="requestPanel" header="List of Available Users"
+				style="background-image:url(images/portal-background-gradient.jpg); background-size: cover;">
+				<p:dataTable id="singleDT" var="user" value="#{userBean.usersList}"
+					selectionMode="single" selection="#{userBean.selectedUser}"
+					rowKey="#{user.userid}" style="table-layout: fixed"
+					resizableColumns="true">
+					<f:facet name="header">
+						<p:outputPanel style="text-align:right">
+							<h:outputText value="Search all fields:" />
+							<p:inputText id="globalFilter" onkeyup="PF('reqTab').filter()"
+								style="width:150px" placeholder="Enter keyword" />
+						</p:outputPanel>
+					</f:facet>
+					<p:column headerText="User Name">
+						<h:outputText value="#{user.username}" />
+					</p:column>
+					<p:column headerText="Role">
+						<h:outputText value="#{user.role}" />
+					</p:column>
+
+					<f:facet name="footer">
+
+					</f:facet>
+				</p:dataTable>
+			</p:panel>
+		</div>
+		<p:dialog header="New User" widgetVar="newUser" modal="true"
+			showEffect="fade" hideEffect="fade" resizable="false">
+			<p:panel id="tpanel" header="User Details">
+				<p:messages id="msg1" showDetail="true" autoUpdate="true"
+					closable="true" />
+				<h:panelGrid columns="2">
+					<h:outputText value="Role* " />
+					<p:selectOneMenu id="role" value="#{userBean.newUser.role}"
+						style="width:335px; margin-left:4px">
+						<f:selectItem itemLabel="Select Role" itemValue=""
+							noSelectionOption="true" />
+						<f:selectItem itemLabel="Admin" itemValue="Admin" />
+						<f:selectItem itemLabel="User" itemValue="User" />
+					</p:selectOneMenu>
+					<h:outputText value="User Name* " />
+					<p:inputText id="username" value="#{userBean.newUser.username}"
+						style="width:350px; margin-left:4px"
+						title="Enter a name for the user" />
+					<h:outputText value="New Password* " />
+					<p:password value="#{userBean.newUser.password}" id="userpassword"
+						style="width:350px; margin-left:4px"
+						title="Enter the password of the user" />
+					<h:outputText value="Confirm Password* " />
+					<p:password value="#{userBean.newUser.confirmpassword}"
+						id="confirmPassword" style="width:350px; margin-left:4px"
+						title="Enter the password again" />
+				</h:panelGrid>
+				<br />
+				<p:column colspan="2">
+					<p:commandButton value="Add User" action="#{userBean.addUser}"
+						style="margin-left:40%" />
+				</p:column>
+			</p:panel>
+		</p:dialog>
+	</h:form>
+</h:body>
+</html>

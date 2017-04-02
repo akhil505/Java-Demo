@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml"
+	xmlns:f="http://java.sun.com/jsf/core"
+	xmlns:h="http://java.sun.com/jsf/html"
+	xmlns:ui="http://java.sun.com/jsf/facelets"
+	xmlns:p="http://primefaces.org/ui"
+	xmlns:pe="http://primefaces.org/ui/extensions">
+<h:head>
+	<title>Flafka Request Details</title>
+</h:head>
+<h:body
+	style="background-image:url(images/background_tata.jpg); background-repeat: no-repeat; background-size: cover">
+	<div id="div1"
+		style="font-size: 70%; font-family: serif; text-align: left; background-repeat: x; padding-top: 5%; width: auto;">
+		<h:form>
+			<p:tabMenu activeIndex="2">
+				<p:menuitem value="Home Page" outcome="homepage">
+					<f:param name="i" value="0" />
+				</p:menuitem>
+				<p:menuitem value="Relational Database" outcome="requestdetails">
+					<f:param name="i" value="1" />
+				</p:menuitem>
+				<p:menuitem value="Data Streaming" outcome="homepage">
+					<f:param name="i" value="2" />
+				</p:menuitem>
+				<p:menuitem value="Social Media" outcome="homepage">
+					<f:param name="i" value="3" />
+				</p:menuitem>
+			</p:tabMenu>
+			<p:separator />
+			<p:commandButton action="flafkaRequest?faces-redirect=true"
+				icon="ui-icon-plusthick" value="Add New Request"
+				style="margin-left:2%; margin-top:1%; margin-bottom:0.3%" />
+		</h:form>
+	</div>
+	<div id="div2" align="center"
+		style="font-family: serif; text-align: left; padding-left: 2%; padding-right: 2%; background-repeat: x; width: auto">
+		<h:form id="form">
+			<p:panel widgetVar="requestPanel" header="List of Available Requests"
+				style="background-image:url(images/portal-background-gradient.jpg); background-size: cover;">
+				<p:dataTable id="basicDT" var="req" widgetVar="reqTab"
+					value="#{flowWizard.jobDetailsList}" paginator="true" rows="5"
+					style="font-size:80%;width:auto">
+					<f:facet name="header">
+						<p:outputPanel style="text-align:right">
+							<h:outputText value="Search all fields:" />
+							<p:inputText id="globalFilter" onkeyup="PF('reqTab').filter()"
+								style="width:150px" placeholder="Enter keyword" />
+						</p:outputPanel>
+					</f:facet>
+					<p:column headerText="Job Id">
+						<h:outputText value="#{req.jobId}" />
+					</p:column>
+					<p:column headerText="Job status">
+					<h:outputText value="#{req.status}" />
+					</p:column>
+					<p:column headerText="Config file path">
+						<h:outputText value="#{req.confFilePath}" />
+					</p:column>
+					<p:column headerText="Submitted date">
+						<h:outputText value="" />
+					</p:column>
+					<p:column style="width:6%; text-align: center" headerText="Re run">
+					</p:column>
+				</p:dataTable>
+			</p:panel>
+		</h:form>
+	</div>
+</h:body>
+</html>

@@ -1,0 +1,107 @@
+package com.datamigration.model;
+
+import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.Serializable;
+import java.util.ResourceBundle;
+
+import javax.faces.bean.ManagedBean;
+import javax.faces.bean.ViewScoped;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+
+import com.datamigration.util.DataMigrationConstants;
+
+@SuppressWarnings("serial")
+@ManagedBean(name = "displayBean")
+@ViewScoped
+public class DisplayBean implements Serializable {
+	private StringBuilder reconData;
+	private StringBuilder logData;
+	
+	
+
+	public StringBuilder getReconData() {
+		return reconData;
+	}
+
+
+
+	public void setReconData(StringBuilder reconData) {
+		this.reconData = reconData;
+	}
+
+
+
+	public StringBuilder getLogData() {
+		return logData;
+	}
+
+
+
+	public void setLogData(StringBuilder logData) {
+		this.logData = logData;
+	}
+
+
+
+	public void readLines(String fileType, String fileName) {
+		
+		DataInputStream in = null;
+		BufferedReader br = null;
+		try {
+			System.out.println(fileType + ">>>>" + fileName);
+			Configuration conf = new Configuration();
+			conf.set("fs.defaultFS", "hdfs://"
+					+ DataMigrationConstants.HIVE_HOSTNAME + ":8020");
+			FileSystem fileSystem = FileSystem.get(conf);
+			/*
+			 * FileInputStream fstream = new FileInputStream(new
+			 * File(directory));
+			 */
+			String displayFile = "";
+			if ("log".equalsIgnoreCase(fileType)) {
+				logData = new StringBuilder();
+				String hdfspath = ResourceBundle.getBundle("parameters")
+						.getString("hdfspath") + "/logs/";
+				displayFile = hdfspath.concat(fileName + ".log");
+			} else {
+				reconData = new StringBuilder();
+				displayFile = fileName;
+			}
+			System.out.println(displayFile);
+			Path path = new Path(displayFile);
+			if (!fileSystem.exists(path)) {
+				System.out.println("File does not exists");
+			} else {
+				System.out.println("File exists");
+			}
+
+			in = fileSystem.open(path);
+			// in = new DataInputStream(fstream);
+			br = new BufferedReader(new InputStreamReader(in));
+			String str = "";
+			while ((str = br.readLine()) != null) {
+				if(fileType.equals("log"))
+					logData.append(str + "\n");
+				else
+					reconData.append(str + "\n");
+			}
+		} catch (Exception e) {// Catch exception if any
+			e.printStackTrace();
+			System.err.println("Error: " + e.getMessage());
+		} finally {
+			try {
+				in.close();
+				br.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		//System.out.println(data);
+	}
+}

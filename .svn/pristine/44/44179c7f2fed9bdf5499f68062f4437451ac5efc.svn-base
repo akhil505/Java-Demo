@@ -1,0 +1,405 @@
+package com.datamigration.services;
+
+import java.io.IOException;
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.ResourceBundle;
+
+import javax.ws.rs.Consumes;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+
+import org.apache.commons.lang.time.DateUtils;
+import org.apache.log4j.Logger;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
+
+import com.datamigration.dao.HiveDAO;
+import com.datamigration.dao.ReconDAO;
+import com.datamigration.dao.RequestDAO;
+import com.datamigration.dao.RequestLogDao;
+import com.datamigration.dao.SchemaCheckDAO;
+import com.datamigration.dao.SqoopDAO;
+import com.datamigration.model.RequestDetails;
+import com.datamigration.model.RequestLogDetails;
+import com.datamigration.util.DataMigrationConstants;
+import com.datamigration.util.HDFSUtil;
+import com.datamigration.util.FRDMException;
+
+@SuppressWarnings("unchecked")
+@Path("/RequestsServices")
+public class RequestsServices {
+	final Logger LOGGER = Logger.getLogger(RequestsServices.class);
+	int statusCode = 400;
+	String response;
+	SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+	SimpleDateFormat sdf1 = new SimpleDateFormat("yyyyMMdd");
+
+	@GET
+	@Path("/requestList")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getRequestsServices(@QueryParam("user") String user) {
+		LOGGER.info("requestList service invocation started!!!");
+		RequestDAO dao = new RequestDAO();
+		List<RequestDetails> requests;
+		JSONArray array = new JSONArray();
+		try {
+			requests = dao.getList(user);
+
+			for (RequestDetails request : requests) {
+				JSONObject requestJson = request.toJson(request);
+				array.add(requestJson);
+			}
+			statusCode = 200;
+			response = array.toString();
+		} catch (FRDMException e) {
+			LOGGER.error(e.getMessage(), e);
+			JSONObject jsonObj = new JSONObject();
+			jsonObj.put("Message", e.getMessage());
+			response = jsonObj.toString();
+		}
+		return Response.status(statusCode).entity(response).build();
+	}
+
+	@POST
+	@Path("/addRequest")
+	@Consumes(MediaType.APPLICATION_JSON)
+	public Response addUpdateRequest(String json) {
+		System.out.println(json);
+		LOGGER.info("addRequest service invocation started!!!");
+		JSONParser jsonparse = new JSONParser();
+		JSONObject jsonObj = null;
+		RequestDAO dao = new RequestDAO();
+		try {
+			jsonObj = (JSONObject) jsonparse.parse(json);
+			RequestDetails request = new RequestDetails();
+			request = request.fromJson(jsonObj);
+			boolean flag = dao.isRequestDetailsValid(request);
+			if ((flag && request.getRequestid() == 0)
+					|| (!flag && request.getRequestid() != 0)) {
+				dao.addUpdate(request);
+				jsonObj = request.toJson(request);
+				response = jsonObj.toString();
+				statusCode = 200;
+			} else {
+				jsonObj = new JSONObject();
+				jsonObj.put("Message",
+						"Request Name already exists for other request");
+				response = jsonObj.toString();
+			}
+
+		} catch (ParseException | FRDMException e) {
+			LOGGER.error(e.getMessage(), e);
+			jsonObj = new JSONObject();
+			jsonObj.put("Message", e.getMessage());
+			response = jsonObj.toString();
+		}
+		return Response.status(statusCode).entity(response).build();
+	}
+
+	@GET
+	@Path("/deleteRequest")
+	@Consumes(MediaType.APPLICATION_JSON)
+	public Response deleteRequest(@QueryParam("id") int id) {
+		LOGGER.info("deleteRequest service invocation started!!!");
+		JSONObject jsonobject = new JSONObject();
+		int deleteStatus = 0;
+		RequestDAO dao = new RequestDAO();
+		String message = "";
+		try {
+			RequestDetails request = new RequestDetails();
+			LOGGER.info(request.getRequestid());
+			deleteStatus = dao.delete((long) id);
+			LOGGER.info(deleteStatus);
+			if (deleteStatus > 0) {
+				message = "RequestId:" + id + " has been deleted Successfully";
+				jsonobject.put("Message", message);
+				statusCode = 200;
+			} else {
+				message = "RequestId:" + id + " could not be deleted";
+				jsonobject.put("Message", message);
+			}
+		} catch (FRDMException e) {
+			LOGGER.error(e.getMessage(), e);
+			jsonobject = new JSONObject();
+			jsonobject.put("Message", e.getMessage());
+		}
+		response = jsonobject.toString();
+		return Response.status(statusCode).entity(response).build();
+	}
+
+	@GET
+	@Path("/getRequestById")
+	public Response getRequestById(@QueryParam("id") int id) {
+		LOGGER.info("getRequestById service invocation started!!!");
+		JSONObject jsonobj = new JSONObject();
+		RequestDAO dao = new RequestDAO();
+		RequestDetails request = new RequestDetails();
+		try {
+			request = dao.getDetails(id);
+
+			if (request != null) {
+				jsonobj = request.toJson(request);
+				statusCode = 200;
+			} else {
+				jsonobj.put("Message", "The " + jsonobj.get("RequestId")
+						+ " RequestId does not exist.");
+			}
+		} catch (FRDMException e) {
+			LOGGER.error(e.getMessage(), e);
+			jsonobj = new JSONObject();
+			jsonobj.put("Message", e.getMessage());
+		}
+		response = jsonobj.toString();
+		return Response.status(statusCode).entity(response).build();
+	}
+
+	private RequestLogDetails runSchemaCheck(org.apache.hadoop.fs.Path path,
+			RequestLogDetails requestLogDetails, RequestDetails request)
+			throws IOException, FRDMException {
+
+		boolean existflag;
+		HDFSUtil util = new HDFSUtil();
+		String table = request.getSourcetable();
+		String targetDir = request.getTargetdirectory();
+		util.writeToOutPutStream(path, new Date()
+				+ " INFO: Checking if the table " + table + " exists in Hive"
+				+ "\n");
+		existflag = new HiveDAO().isTableExists(request.getSourcedatabase(),
+				request.getSourcetable());
+		if (existflag) {
+			util.writeToOutPutStream(path, new Date() + " INFO: Table " + table
+					+ " exist in Hive" + "\n");
+			SchemaCheckDAO schema = new SchemaCheckDAO();
+			util.writeToOutPutStream(path, new Date()
+					+ " INFO: Comparing Source and destination schemas" + "\n");
+			HashMap<String, String> mismatchMap = schema.compareSchema(request);
+			String mismatch = mismatchMap.get("mismatch");
+			String mismatchtable = mismatchMap.get("tableName");
+			requestLogDetails.setMismatchtable(mismatchtable);
+			requestLogDetails.setSchemamismatch(mismatch);
+			String tarDir = targetDir + "/" + mismatchtable;
+			requestLogDetails.setTargetdirectory(tarDir);
+		} else {
+			util.writeToOutPutStream(path, new Date() + " INFO: Table " + table
+					+ " doesnot exist in Hive" + "\n");
+			requestLogDetails.setMismatchtable("");
+			requestLogDetails.setSchemamismatch("No Mismatch");
+			String tarDir = targetDir + "/" + table;
+			requestLogDetails.setTargetdirectory(tarDir);
+		}
+		return requestLogDetails;
+
+	}
+
+	private RequestLogDetails getDates(RequestLogDetails requestLogDetails,
+			RequestDetails request) throws FRDMException {
+		Calendar cal = Calendar.getInstance();
+		String startDate = null;
+		String endDate = null;
+		String requestType = request.getLoadtype();
+		switch (requestType.toLowerCase()) {
+		case "hourly":
+			Timestamp startTS = new RequestLogDao().getStartDate(
+					request.getRequestid(), request.getSourcetable());
+			if (startTS == null) {
+				cal = DateUtils.truncate(cal, Calendar.HOUR_OF_DAY);
+				cal.set(Calendar.HOUR_OF_DAY, cal.get(Calendar.HOUR_OF_DAY) - 1);
+				startTS = new Timestamp(cal.getTimeInMillis());
+			}
+			cal.setTimeInMillis(startTS.getTime());
+			cal.add(Calendar.HOUR, 1);
+			Timestamp endTS = new Timestamp(cal.getTime().getTime());
+			startDate = sdf.format(startTS);
+			endDate = sdf.format(endTS);
+			break;
+		case "daily":
+			Timestamp tsStart = new RequestLogDao().getStartDate(
+					request.getRequestid(), request.getSourcetable());
+			if (tsStart == null) {
+				cal = DateUtils.truncate(cal, Calendar.DATE);
+				cal.set(Calendar.DATE, cal.get(Calendar.DATE) - 1);
+				tsStart = new Timestamp(cal.getTimeInMillis());
+			}
+			cal.setTimeInMillis(tsStart.getTime());
+			cal.add(Calendar.DATE, 1);
+			Timestamp tsEnd = new Timestamp(cal.getTime().getTime());
+			startDate = sdf.format(tsStart);
+			endDate = sdf.format(tsEnd);
+			break;
+		default:
+			break;
+		}
+		requestLogDetails.setEnddate(endDate);
+		requestLogDetails.setStartdate(startDate);
+		return requestLogDetails;
+	}
+
+	/**
+	 * @param requestId
+	 * @param logId
+	 * @return
+	 * @throws IOException
+	 */
+	@GET
+	@Path("/runSqoop")
+	public Response runSqoop(@QueryParam("id") int requestId,
+			@QueryParam("logId") int logId) {
+		LOGGER.info("runSqoop service invocation started!!!");
+		String status = DataMigrationConstants.RUNNING;
+		JSONArray responseJson = new JSONArray();
+		SqoopDAO dao = new SqoopDAO();
+		RequestLogDao requestLog = new RequestLogDao();
+		HiveDAO hiveDao = new HiveDAO();
+		RequestDetails request;
+		String[] tables;
+		String startDate = null;
+		String endDate = null;
+		try {
+			RequestLogDetails requestLogDetails = new RequestLogDetails();
+			// Fetch request details
+			LOGGER.info("Fetching request details");
+			if (logId != 0) {
+				requestLogDetails = requestLog.getDetails(logId);
+				request = new RequestDAO().getDetails(requestLogDetails
+						.getRequestid());
+				tables = requestLogDetails.getTablename().split(",");
+				startDate = requestLogDetails.getStartdate();
+				endDate = requestLogDetails.getEnddate();
+			} else {
+				request = new RequestDAO().getDetails(requestId);
+				tables = request.getSourcetables().split(",");
+			}
+			request.setProvisionstatus(status);
+			new RequestDAO().addUpdate(request);
+			String targetDir = request.getTargetdirectory();
+			for (String table : tables) {
+				String reconStatus = "Not Run";
+				try {
+					String hdfspath = ResourceBundle.getBundle("parameters")
+							.getString("hdfspath");
+					String datepart = sdf1.format(new Timestamp(System
+							.currentTimeMillis()));
+					String tempTableName = table;
+					HDFSUtil util = new HDFSUtil();
+					String logfile = hdfspath.concat("/logs/" + table + ".log");
+					org.apache.hadoop.fs.Path path = new org.apache.hadoop.fs.Path(
+							logfile);
+					util.writeToOutPutStream(path, new Date()
+							+ " INFO: Data load started for table " + table
+							+ "\n");
+					if (logId == 0) {
+						request.setSourcetable(table);
+						if ("hive".equalsIgnoreCase(request.getStoragetarget())) {
+							requestLogDetails = runSchemaCheck(path,
+									requestLogDetails, request);
+						}
+						if ("hdfs".equalsIgnoreCase(request.getStoragetarget())) {
+							String tarDir = targetDir + "/" + table;
+							requestLogDetails.setTargetdirectory(tarDir);
+						}
+						requestLogDetails.setRequestid(request.getRequestid());
+						requestLogDetails.setTablename(table);
+						requestLogDetails.setJobstatus(status);
+						requestLogDetails.setRequesttype(request.getLoadtype());
+						if (startDate == null) {
+							getDates(requestLogDetails, request);
+						} else {
+							requestLogDetails.setEnddate(endDate);
+							requestLogDetails.setStartdate(startDate);
+						}
+					}
+					requestLogDetails.setExecutiontime(sdf
+							.format(new Timestamp(System.currentTimeMillis())));
+					requestLogDetails = requestLog.addUpdate(requestLogDetails);
+					String returnCode = dao.executeSqoopScripts(path, request,
+							requestLogDetails);
+					if (returnCode.equalsIgnoreCase("0")) {
+						if ("hive".equalsIgnoreCase(request.getStoragetarget())) {
+							boolean flag;
+							util.writeToOutPutStream(
+									path,
+									new Date()
+											+ " INFO: Creating hive table on the data loaded if not already exists"
+											+ "\n");
+							flag = hiveDao.createHiveTable(request, table,
+									tempTableName);
+							if (flag) {
+								status = "SUCCESS";
+							} else {
+								util.writeToOutPutStream(path, new Date()
+										+ " ERROR: Hive table creation failed"
+										+ "\n");
+								status = "FAILED";
+							}
+						} else {
+							status = "SUCCESS";
+						}
+					} else {
+						status = "FAILED";
+					}
+					requestLogDetails.setExecutiontime(sdf
+							.format(new Timestamp(System.currentTimeMillis())));
+					requestLogDetails.setReconfile(hdfspath + "/recon/" + table
+							+ "_" + datepart);
+					LOGGER.info("Recon file:" + hdfspath + "/recon/" + table
+							+ "_" + datepart);
+					ReconDAO recondao = new ReconDAO();
+					util.writeToOutPutStream(path, new Date()
+							+ " INFO: Getting parameters to execute Recon"
+							+ "\n");
+					String reconParams = recondao.getReconParameters(request,
+							requestLogDetails);
+					LOGGER.info("reconParams:" + reconParams);
+					reconStatus = recondao.executeReconProcess(path,
+							reconParams);
+					if (reconStatus.equalsIgnoreCase("0")) {
+						util.writeToOutPutStream(path, new Date()
+								+ " INFO: Recon process Successful for "
+								+ table + "\n");
+						reconStatus = "SUCCESS";
+					} else {
+						util.writeToOutPutStream(path, new Date()
+								+ " ERROR: Recon process failed for " + table
+								+ "\n");
+						reconStatus = "FAILED";
+					}
+					JSONObject jsonMsg = new JSONObject();
+					jsonMsg.put("logid", requestLogDetails.getRequestlogid());
+					jsonMsg.put("status", status);
+					responseJson.add(jsonMsg);
+				} catch (FRDMException | IOException e) {
+					e.printStackTrace();
+					JSONObject jsonobject = new JSONObject();
+					jsonobject.put("Message", e.getMessage());
+					responseJson.add(jsonobject);
+					status = DataMigrationConstants.FAILED;
+				}
+				requestLogDetails.setJobstatus(status);
+				requestLogDetails.setReconstatus(reconStatus);
+				requestLog.addUpdate(requestLogDetails);
+			}
+			request.setProvisionstatus("COMPLETED");
+			new RequestDAO().addUpdate(request);
+			statusCode = 200;
+		} catch (FRDMException e) {
+			e.printStackTrace();
+			JSONObject jsonobject = new JSONObject();
+			jsonobject.put("Message", e.getMessage());
+			responseJson.add(jsonobject);
+		}
+		response = responseJson.toString();
+		return Response.status(statusCode).entity(response).build();
+	}
+}

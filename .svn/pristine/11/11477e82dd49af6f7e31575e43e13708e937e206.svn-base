@@ -1,0 +1,307 @@
+package com.datamigration.dao;
+
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.log4j.Logger;
+
+import com.datamigration.model.RequestDetails;
+import com.datamigration.model.RequestLogDetails;
+import com.datamigration.util.DataMigrationConstants;
+import com.datamigration.util.FRDMException;
+
+@SuppressWarnings("static-access")
+public class RequestLogDao implements DaoUtil<RequestLogDetails> {
+	final Logger LOGGER = Logger.getLogger(RequestLogDao.class);
+
+	public RequestLogDetails addUpdate(RequestLogDetails obj)
+			throws FRDMException {
+		DbConnection dbConn = null;
+		try {
+			dbConn = DbConnection.getInstance();
+			String query = null;
+			PreparedStatement stmt = null;
+			boolean flag = false;
+			if (!isRequestLogExists(obj.getRequestlogid())) {
+
+				query = "insert into "
+						+ DataMigrationConstants.REQUESTLOG_TABLE
+						+ "(requestid,requesttype,tablename,startdate,enddate,targetdirectory,count,"
+						+ "executiontime,jobstatus,reconstatus,reconfile,schemamismatch,mismatchtable)"
+						+ " values(?,?,?,?,?,?,?,?,?,?,?,?,?)";
+				stmt = dbConn.con.prepareStatement(query,
+						Statement.RETURN_GENERATED_KEYS);
+				flag = true;
+			} else {
+				query = "update "
+						+ DataMigrationConstants.REQUESTLOG_TABLE
+						+ " set requestid=?, requesttype=?, tablename=?, startdate=?, enddate=?, targetdirectory=?,"
+						+ " count=?, executiontime=?, jobstatus=?, reconstatus=?, reconfile=?, schemamismatch=?, mismatchtable=? where requestlogid=?";
+				stmt = dbConn.con.prepareStatement(query);
+				stmt.setInt(14, obj.getRequestlogid());
+			}
+
+			stmt.setInt(1, (int) obj.getRequestid());
+			stmt.setString(2, obj.getRequesttype());
+			stmt.setString(3, obj.getTablename());
+			stmt.setString(4, obj.getStartdate());
+			stmt.setString(5, obj.getEnddate());
+			stmt.setString(6, obj.getTargetdirectory());
+			stmt.setInt(7, obj.getCount());
+			stmt.setString(8, obj.getExecutiontime());
+			stmt.setString(9, obj.getJobstatus());
+			stmt.setString(10, obj.getReconstatus());
+			stmt.setString(11, obj.getReconfile());
+			stmt.setString(12, obj.getSchemamismatch());
+			stmt.setString(13, obj.getMismatchtable());
+			stmt.executeUpdate();
+			if (flag) {
+				ResultSet generatedKeys = stmt.getGeneratedKeys();
+				while (generatedKeys.next()) {
+					obj.setRequestlogid(generatedKeys.getInt(1));
+				}
+				generatedKeys.close();
+			}
+			stmt.close();
+		} catch (SQLException | ClassNotFoundException e) {
+			throw new FRDMException(
+					"Could not update/insert the request log details: "
+							+ e.getMessage(), e);
+		}
+		return obj;
+	}
+
+	private boolean isRequestLogExists(int requestLogId) throws FRDMException {
+		try {
+			String query = "select * from "
+					+ DataMigrationConstants.REQUESTLOG_TABLE
+					+ " where requestlogid='" + requestLogId + "'";
+			DbConnection dbConn = null;
+			dbConn = DbConnection.getInstance();
+			PreparedStatement stmt = null;
+			ResultSet rs;
+			stmt = dbConn.con.prepareStatement(query);
+			rs = stmt.executeQuery(query);
+			while (rs.next()) {
+				return true;
+			}
+			rs.close();
+			stmt.close();
+		} catch (SQLException | ClassNotFoundException e) {
+			throw new FRDMException("Could not verify the request log details: "
+					+ e.getMessage(), e);
+		}
+		return false;
+	}
+
+	@Override
+	public int delete(Object id) {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+
+	public List<RequestLogDetails> getList(int id) throws FRDMException {
+		List<RequestLogDetails> requestLogs = new ArrayList<RequestLogDetails>();
+
+		String query = "select * from "
+				+ DataMigrationConstants.REQUESTLOG_TABLE;
+		if (id != 0) {
+			query = query + " where requestId=" + id;
+		}
+		query = query + " order by executiontime desc";
+		LOGGER.info("Query==" + query);
+		DbConnection dbConn = null;
+		try {
+			dbConn = DbConnection.getInstance();
+			PreparedStatement stmt = dbConn.con.prepareStatement(query);
+			ResultSet rs = stmt.executeQuery(query);
+			RequestLogDetails requestlog = null;
+			SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+			while (rs.next()) {
+				requestlog = new RequestLogDetails();
+				requestlog.setRequestlogid(rs.getInt("requestlogid"));
+				requestlog.setRequestid(rs.getInt("requestid"));
+				requestlog.setTablename(rs.getString("tablename"));
+				requestlog.setRequesttype(rs.getString("requesttype"));
+				Timestamp startTS = rs.getTimestamp("startdate");
+				if (startTS != null) {
+					requestlog.setStartdate(sdf.format(startTS));
+				} else {
+					requestlog.setStartdate(null);
+				}
+				Timestamp endTS = rs.getTimestamp("enddate");
+				if (endTS != null) {
+					requestlog.setEnddate(sdf.format(endTS));
+				} else {
+					requestlog.setEnddate(null);
+				}
+				requestlog.setTargetdirectory(rs.getString("targetdirectory"));
+				requestlog.setCount(rs.getInt("count"));
+				requestlog.setExecutiontime(sdf.format(rs
+						.getTimestamp("executiontime")));
+				requestlog.setJobstatus(rs.getString("jobstatus"));
+				requestlog.setSchemamismatch(rs.getString("schemamismatch"));
+				requestlog.setMismatchtable(rs.getString("mismatchtable"));
+				requestlog.setReconstatus(rs.getString("reconstatus"));
+				requestlog.setReconfile(rs.getString("reconfile"));
+				requestLogs.add(requestlog);
+			}
+			rs.close();
+			stmt.close();
+		} catch (SQLException | ClassNotFoundException e) {
+			throw new FRDMException("Could not fetch the request log details: "
+					+ e.getMessage(), e);
+		}
+		return requestLogs;
+	}
+
+	@Override
+	public RequestLogDetails getDetails(Object id) throws FRDMException {
+
+		RequestLogDetails requestLog = new RequestLogDetails();
+		String query = "select * from "
+				+ DataMigrationConstants.REQUESTLOG_TABLE
+				+ " where requestlogid='" + id + "'";
+		LOGGER.info(query + "====");
+		System.out.println(query + "====");
+		DbConnection dbConn = null;
+		try {
+			dbConn = DbConnection.getInstance();
+			PreparedStatement stmt = dbConn.con.prepareStatement(query);
+			ResultSet rs = stmt.executeQuery(query);
+			SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+			while (rs.next()) {
+				requestLog = new RequestLogDetails();
+				requestLog.setRequestlogid(rs.getInt("requestlogid"));
+				requestLog.setRequestid(rs.getInt("requestid"));
+				requestLog.setTablename(rs.getString("tablename"));
+				requestLog.setRequesttype(rs.getString("requesttype"));
+				Timestamp startTS = rs.getTimestamp("startdate");
+				if (startTS != null) {
+					requestLog.setStartdate(sdf.format(startTS));
+				} else {
+					requestLog.setStartdate(null);
+				}
+				Timestamp endTS = rs.getTimestamp("enddate");
+				if (endTS != null) {
+					requestLog.setEnddate(sdf.format(endTS));
+				} else {
+					requestLog.setEnddate(null);
+				}
+				requestLog.setTargetdirectory(rs.getString("targetdirectory"));
+				requestLog.setCount(rs.getInt("count"));
+				requestLog.setExecutiontime(sdf.format(rs
+						.getTimestamp("executiontime")));
+				requestLog.setJobstatus(rs.getString("jobstatus"));
+				requestLog.setSchemamismatch(rs.getString("schemamismatch"));
+				requestLog.setMismatchtable(rs.getString("mismatchtable"));
+				requestLog.setReconstatus(rs.getString("reconstatus"));
+				requestLog.setReconfile(rs.getString("reconfile"));
+			}
+			rs.close();
+			stmt.close();
+		} catch (SQLException | ClassNotFoundException e) {
+			throw new FRDMException("Could not fetch the request log details: "
+					+ e.getMessage(), e);
+		}
+		return requestLog;
+	}
+
+	public String generateRequestLogId(RequestDetails sqoop) {
+		long reqId = 0;
+		if (sqoop.getRequestid() != 0) {
+			reqId = sqoop.getRequestid();
+		}
+		String logRequestId = reqId + "_" + sqoop.getStoragetarget() + "_"
+				+ sqoop.getSourcetable();
+		return logRequestId;
+	}
+
+	@Override
+	public List<RequestLogDetails> getList() {
+		return null;
+	}
+
+	public Timestamp getStartDate(int id, String tablename) throws FRDMException {
+		String startDateQuery = "select max(enddate) as startdate from "
+				+ DataMigrationConstants.REQUESTLOG_TABLE + " where requestId="
+				+ id + " and tablename='" + tablename + "'";
+		DbConnection dbConn = null;
+		Timestamp startdate = null;
+		try {
+			dbConn = DbConnection.getInstance();
+			PreparedStatement stmt = dbConn.con
+					.prepareStatement(startDateQuery);
+			ResultSet rs = stmt.executeQuery();
+			while (rs.next()) {
+				startdate = rs.getTimestamp("startdate");
+			}
+			rs.close();
+			stmt.close();
+		} catch (SQLException | ClassNotFoundException e) {
+			throw new FRDMException("Could not fetch the request log details: "
+					+ e.getMessage(), e);
+		}
+		return startdate;
+	}
+
+	public List<RequestLogDetails> getLastRunList(int id) throws FRDMException {
+		List<RequestLogDetails> requestLogs = new ArrayList<RequestLogDetails>();
+		DbConnection dbConn = null;
+		try {
+			dbConn = DbConnection.getInstance();
+			String query = "select a.* from "
+					+ DataMigrationConstants.REQUESTLOG_TABLE
+					+ " a join (select tablename,max(executiontime) executiontime from "
+					+ DataMigrationConstants.REQUESTLOG_TABLE
+					+ " where requestid=? and requesttype!='adhoc' group by tablename) b on (a.tablename=b.tablename and a.executiontime=b.executiontime)";
+			PreparedStatement stmt = dbConn.con.prepareStatement(query);
+			stmt.setInt(1, id);
+			ResultSet rs = stmt.executeQuery();
+
+			RequestLogDetails requestlog = null;
+			SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+			while (rs.next()) {
+				requestlog = new RequestLogDetails();
+				requestlog.setRequestlogid(rs.getInt("requestlogid"));
+				requestlog.setRequestid(rs.getInt("requestid"));
+				requestlog.setTablename(rs.getString("tablename"));
+				requestlog.setRequesttype(rs.getString("requesttype"));
+				Timestamp startTS = rs.getTimestamp("startdate");
+				if (startTS != null) {
+					requestlog.setStartdate(sdf.format(startTS));
+				} else {
+					requestlog.setStartdate(null);
+				}
+				Timestamp endTS = rs.getTimestamp("enddate");
+				if (endTS != null) {
+					requestlog.setEnddate(sdf.format(endTS));
+				} else {
+					requestlog.setEnddate(null);
+				}
+				requestlog.setTargetdirectory(rs.getString("targetdirectory"));
+				requestlog.setCount(rs.getInt("count"));
+				requestlog.setExecutiontime(sdf.format(rs
+						.getTimestamp("executiontime")));
+				requestlog.setJobstatus(rs.getString("jobstatus"));
+				requestlog.setSchemamismatch(rs.getString("schemamismatch"));
+				requestlog.setMismatchtable(rs.getString("mismatchtable"));
+				requestlog.setReconstatus(rs.getString("reconstatus"));
+				requestlog.setReconfile(rs.getString("reconfile"));
+				requestLogs.add(requestlog);
+			}
+			rs.close();
+			stmt.close();
+		} catch (SQLException | ClassNotFoundException e) {
+			throw new FRDMException("Could not fetch the request log details: "
+					+ e.getMessage(), e);
+		}
+		return requestLogs;
+	}
+}

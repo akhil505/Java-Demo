@@ -1,0 +1,238 @@
+package com.datamigration.util;
+
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URISyntaxException;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.log4j.Logger;
+
+/**
+ * 
+ * @author
+ *
+ */
+public class HDFSUtil {
+
+	public Configuration conf;
+	static final Logger LOGGER = Logger.getLogger(HDFSUtil.class);
+	FileSystem fileSystem = null;
+
+	public HDFSUtil() throws IOException {
+		conf = new Configuration();
+		LOGGER.info("HDFS Init");
+		conf.set("fs.defaultFS", "hdfs://"
+				+ DataMigrationConstants.HIVE_HOSTNAME + ":8020");
+		conf.set("hadoop.security.authentication", "kerberos");
+		conf.set("dfs.namenode.kerberos.principal.pattern",
+				"hdfs/*@TCSHYDNEXTGEN.COM");
+		LOGGER.info(DataMigrationConstants.HIVE_HOSTNAME
+				+ "--------------------------------------------------------"
+				+ conf.get("fs.defaultFS"));
+		UserGroupInformation.setConfiguration(conf);
+		UserGroupInformation.loginUserFromKeytab("498796@TCSHYDNEXTGEN.COM",
+				"/home/498796/498796.keytab");
+		System.setProperty("HADOOP_USER_NAME",
+				DataMigrationConstants.SHELL_USER);
+		LOGGER.info("Kerberos authenticated");
+		fileSystem = FileSystem.get(conf);
+		System.setProperty("HADOOP_USER_NAME",
+				DataMigrationConstants.SHELL_USER);
+	}
+
+	/**
+	 * @param source
+	 * @param dest
+	 * @param conf
+	 * @throws IOException
+	 */
+	public void addFile(String source, String dest) throws IOException {
+
+		// Get the filename out of the file path
+		String filename = source.substring(source.lastIndexOf('/') + 1,
+				source.length());
+
+		// Create the destination path including the filename.
+		if (dest.charAt(dest.length() - 1) != '/') {
+			dest = dest + "/" + filename;
+		} else {
+			dest = dest + filename;
+		}
+
+		// System.out.println("Adding file to " + destination);
+
+		// Check if the file already exists
+		Path path = new Path(dest);
+		if (fileSystem.exists(path)) {
+			System.out.println("File " + dest + " already exists");
+			return;
+		}
+
+		// Create a new file and write data to it.
+		FSDataOutputStream out = fileSystem.create(path);
+		InputStream in = new BufferedInputStream(new FileInputStream(new File(
+				source)));
+
+		byte[] b = new byte[1024];
+		int numBytes = 0;
+		while ((numBytes = in.read(b)) > 0) {
+			out.write(b, 0, numBytes);
+		}
+
+		// Close all the file descriptors
+		in.close();
+
+	}
+
+	public void writeFile(String file, InputStream content, boolean append,
+			String permissions) throws IOException {
+		System.out.println("()())(" + conf.get("fs.default.name"));
+		Path path = new Path(file);
+		FSDataOutputStream out;
+		if (fileSystem.exists(path)) {
+			System.out.println("File " + file + " already exists");
+			if (append) {
+				out = fileSystem.append(path);
+			} else {
+				fileSystem.delete(path, true);
+				out = fileSystem.create(path);
+			}
+		} else {
+			out = fileSystem.create(path);
+			System.out.println("File " + file + " created");
+		}
+		byte[] b = new byte[1024];
+		int numBytes = 0;
+		while ((numBytes = content.read(b)) > 0) {
+			out.write(b, 0, numBytes);
+		}
+
+		// Close all the file descriptors
+		content.close();
+		out.close();
+		fileSystem.setOwner(path, DataMigrationConstants.SHELL_USER,
+				DataMigrationConstants.SHELL_USER);
+		fileSystem.setPermission(path, FsPermission.valueOf(permissions));
+	}
+
+	public void writeToOutPutStream(Path path, String message)
+			throws IOException {
+		FSDataOutputStream out;
+
+		InputStream in = new ByteArrayInputStream(
+				new String(message).getBytes());
+		if (fileSystem.exists(path)) {
+			out = fileSystem.append(path);
+		} else {
+			out = fileSystem.create(path);
+		}
+		byte[] b = new byte[1024];
+		int numBytes = 0;
+		while ((numBytes = in.read(b)) > 0) {
+			out.write(b, 0, numBytes);
+		}
+		in.close();
+		out.close();
+	}
+
+	/**
+	 * 
+	 * @param file
+	 * @param conf
+	 * @throws IOException
+	 */
+	public void readFile(String file) throws IOException {
+
+		Path path = new Path(file);
+		if (!fileSystem.exists(path)) {
+			System.out.println("File " + file + " does not exists");
+			return;
+		}
+
+		FSDataInputStream in = fileSystem.open(path);
+
+		String filename = file.substring(file.lastIndexOf('/') + 1,
+				file.length());
+
+		OutputStream out = new BufferedOutputStream(new FileOutputStream(
+				new File(filename)));
+
+		byte[] b = new byte[1024];
+		int numBytes = 0;
+		while ((numBytes = in.read(b)) > 0) {
+			out.write(b, 0, numBytes);
+		}
+
+		in.close();
+		out.close();
+	}
+
+	/**
+	 * 
+	 * @param file
+	 * @throws IOException
+	 */
+	public void deleteFile(String file) throws IOException {
+
+		Path path = new Path(file);
+		if (!fileSystem.exists(path)) {
+			System.out.println("File " + file + " does not exists");
+			return;
+		}
+		fileSystem.delete(new Path(file), true);
+	}
+
+	/**
+	 * 
+	 * @param dir
+	 * @throws IOException
+	 */
+	public void mkdir(String dir) throws IOException {
+		Path path = new Path(dir);
+		if (fileSystem.exists(path)) {
+			System.out.println("Dir " + dir + " already not exists");
+			return;
+		}
+		fileSystem.mkdirs(path);
+	}
+
+	/**
+	 * 
+	 * @throws IOException
+	 */
+	public void closeFileSystem() throws IOException {
+		fileSystem.close();
+	}
+
+	/**
+	 * 
+	 * @param args
+	 * @throws IOException
+	 * @throws URISyntaxException
+	 */
+	public static void main(String[] args) throws IOException,
+			URISyntaxException {
+		HDFSUtil util = new HDFSUtil();
+		String name = "mariadb";
+		System.setProperty("HADOOP_USER_NAME", "root");
+		util.writeFile(
+				"/user/hdfs/datamigration/passwords/1.txt",
+				new ByteArrayInputStream(name.getBytes()),
+				true, "-rwxrwxrwx");
+
+		// util.deleteFile("/user/hdfs/datamigration/passwords/3.txt");
+	}
+}

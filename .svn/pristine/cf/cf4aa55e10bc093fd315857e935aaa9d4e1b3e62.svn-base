@@ -1,0 +1,90 @@
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.Date;
+import java.util.ResourceBundle;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+
+import com.datamigration.util.DataMigrationConstants;
+import com.datamigration.util.FRDMException;
+import com.datamigration.util.HDFSUtil;
+import com.datamigration.util.PasswordCryption;
+import com.jcraft.jsch.ChannelExec;
+import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.JSchException;
+import com.jcraft.jsch.Session;
+
+public class Test2 {
+	public static void main(String[] args) {
+		String parameters = "10.138.90.224,3306,mysql,test,animals,Full,,null,null,Hive,root,52cFfRFZkkmbGySljo5Q0A==,/user/hdfs/datamigration/recon/animals_20160714,null,2,animals";
+		String statusCode = DataMigrationConstants.FAILED;
+		try {
+			BufferedReader br = null;
+
+			JSch jsch = new JSch();
+			Session session1;
+
+			session1 = jsch.getSession(DataMigrationConstants.SHELL_USER,
+					DataMigrationConstants.HIVE_HOSTNAME,
+					DataMigrationConstants.PORT);
+			ResourceBundle bundle = ResourceBundle.getBundle("parameters");
+			String key = bundle.getString("key");
+			String pwd = PasswordCryption.decrypt(
+					DataMigrationConstants.SHELL_PASSWORD, key);
+			session1.setPassword(pwd);
+			session1.setConfig("StrictHostKeyChecking", "no");
+			session1.connect();
+
+			ChannelExec channelExec = (ChannelExec) session1
+					.openChannel("exec");
+
+			String sparkJobCommand = "spark-submit "
+					+ "--class com.recon.main.Working "
+					+ "--master local --files /etc/hive/conf/hive-site.xml --driver-class-path hive-site.xml"
+					+ " /home/498796/Reconciliation.jar " + parameters + " > "
+					+ DataMigrationConstants.LOG_DIR + "_recon_" + 1
+					+ " 2>&1";
+			;
+			System.out.println("recon Command:" + sparkJobCommand);
+			channelExec.setInputStream(null);
+			channelExec.setCommand("kinit -kt " + DataMigrationConstants.KEYTAB
+					+ " " + DataMigrationConstants.PRINCIPAL + ";"
+					+ sparkJobCommand + "; echo $?");
+			channelExec.connect();
+
+			InputStream is = channelExec.getInputStream();
+			br = new BufferedReader(new InputStreamReader(is));
+
+			String line, returnCode = null;
+			while ((line = br.readLine()) != null && !channelExec.isClosed()) {
+				returnCode = line;
+			}
+			System.out.println(returnCode);
+			br.close();
+			is.close();
+			if ("0".equalsIgnoreCase(returnCode)) {
+				statusCode = DataMigrationConstants.SUCCESS;
+			}
+			channelExec.disconnect();
+			session1.disconnect();
+		} catch (IOException | JSchException | InvalidKeyException
+				| NoSuchAlgorithmException | NoSuchPaddingException
+				| IllegalBlockSizeException | BadPaddingException
+				| InvalidKeySpecException e) {
+			e.printStackTrace();
+		}
+		System.out.println("Recon Status: " + statusCode);
+	}
+}

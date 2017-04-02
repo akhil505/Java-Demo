@@ -1,0 +1,41 @@
+package com.datamigration.model;
+
+import java.io.IOException;
+import java.io.Serializable;
+
+import javax.faces.application.FacesMessage;
+import javax.faces.bean.ManagedBean;
+import javax.faces.bean.ViewScoped;
+import javax.faces.context.FacesContext;
+
+import com.datamigration.util.HDFSUtil;
+
+@SuppressWarnings("serial")
+@ManagedBean(name = "displayBean")
+@ViewScoped
+public class DisplayBean implements Serializable {
+	private StringBuilder logData;
+
+	public StringBuilder getLogData() {
+		return logData;
+	}
+
+	public void setLogData(StringBuilder logData) {
+		this.logData = logData;
+	}
+
+	public void readLines(String fileName) {
+
+		System.out.println(">>>>" + fileName);
+		try {
+			HDFSUtil util = new HDFSUtil();
+			logData = util.readFile(fileName);
+		} catch (IOException e) {
+			String error = e.getMessage();
+			FacesContext.getCurrentInstance().addMessage(
+					"",
+					new FacesMessage(FacesMessage.SEVERITY_ERROR, "ERROR",
+							error));
+		}
+	}
+}

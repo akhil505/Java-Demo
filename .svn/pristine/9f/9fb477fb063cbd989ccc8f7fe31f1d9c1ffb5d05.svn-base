@@ -1,0 +1,106 @@
+package com.datamigration.model;
+
+import java.io.Serializable;
+
+import javax.faces.application.FacesMessage;
+import javax.faces.bean.ManagedBean;
+import javax.faces.bean.SessionScoped;
+import javax.faces.context.ExternalContext;
+import javax.faces.context.FacesContext;
+
+import org.apache.log4j.Logger;
+
+//import com.tcs.dao.LoginAction;
+
+/**
+ * @author sasikiran
+ *
+ */
+@SuppressWarnings("serial")
+@ManagedBean(name = "loginBean")
+@SessionScoped
+public class LoginBean implements Serializable {
+	/**
+	 * 
+	 */
+	private static final Logger LOGGER = Logger.getLogger(LoginBean.class);
+	/**
+	 * 
+	 */
+	private String loginName;
+	/**
+	 * 
+	 */
+	private String password;
+
+	/**
+	 * @return
+	 */
+	public String getLoginName() {
+		return loginName;
+	}
+
+	/**
+	 * @param loginname
+	 */
+	public void setLoginName(final String loginName) {
+		this.loginName = loginName;
+	}
+
+	/**
+	 * @return
+	 */
+	public String getPassword() {
+		return password;
+	}
+
+	/**
+	 * @param password
+	 */
+	public void setPassword(final String password) {
+		this.password = password;
+	}
+
+	/**
+	 * @return
+	 */
+	public String checkValidUser() {
+		// LoginAction login = new LoginAction();
+		// String status = login.validateLogin(loginname, password);
+		LOGGER.info("Login Success");
+		ExternalContext externalContext = FacesContext.getCurrentInstance().getExternalContext();
+		externalContext.invalidateSession();
+		LoginBean lbean = new LoginBean();
+		lbean.setLoginName(loginName);
+		externalContext.getSessionMap().put("loginBean", lbean);
+		if(loginName.equalsIgnoreCase("admin")) {
+			return "serverdetails?faces-redirect=true";
+		}
+		return "homepage?faces-redirect=true";
+	}
+
+	/**
+	 * @return
+	 */
+	public String logout() {
+		// LoginAction login = new LoginAction();
+		// String logoutStatus = login.logout();
+		LOGGER.info("Logout Success");
+		ExternalContext externalContext = FacesContext.getCurrentInstance().getExternalContext();
+		externalContext.invalidateSession();
+		return "login";
+	}
+	
+	public String timeout() {
+		// LoginAction login = new LoginAction();
+		// String logoutStatus = login.logout();
+		LOGGER.info("Logout Success");
+		FacesContext context = FacesContext.getCurrentInstance();
+		context.addMessage(
+				"",
+				new FacesMessage(FacesMessage.SEVERITY_ERROR,
+						"OOPS", "Session TimedOut!! Please login again"));
+		context.getExternalContext().invalidateSession();
+		return "login";
+	}
+}

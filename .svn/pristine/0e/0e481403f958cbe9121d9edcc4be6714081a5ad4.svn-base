@@ -1,0 +1,229 @@
+package com.datamigration.dao;
+
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import java.util.Date;
+import java.util.ResourceBundle;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+
+import org.apache.commons.codec.binary.Base64;
+import org.apache.hadoop.fs.Path;
+import org.apache.log4j.Logger;
+
+import com.datamigration.model.RequestDetails;
+import com.datamigration.model.RequestLogDetails;
+import com.datamigration.util.DataMigrationConstants;
+import com.datamigration.util.HDFSUtil;
+import com.datamigration.util.FRDMException;
+import com.datamigration.util.PasswordCryption;
+import com.jcraft.jsch.ChannelExec;
+import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.JSchException;
+import com.jcraft.jsch.Session;
+
+public class SqoopDAO {
+
+	final Logger LOGGER = Logger.getLogger(SqoopDAO.class);
+	String key;
+	String hdfspath;
+
+	public String sqoopQueryGeneration(RequestDetails sb, RequestLogDetails logs)
+			throws IOException {
+		String driver = "";
+		String URL = "";
+		String sqoopQuery = "";
+		String destination = sb.getStoragetarget().toLowerCase();
+		String userName = sb.getUsername();
+		String encryptpassword = sb.getPassword();
+		String tbName = sb.getSourcetable();
+		String datafiletype = sb.getStorageformat();
+		String splitbyColumn = sb.getSplitbycolumn();
+		String compressiontype = sb.getStoragecompression();
+		String loadType = sb.getLoadtype();
+		long mapper = sb.getMappers();
+		switch (sb.getType().toLowerCase()) {
+		case "mysql":
+			driver = DataMigrationConstants.MYSQL_DRIVER_CLASS;
+			URL = DataMigrationConstants.MYSQL_CONNECTION_PREFIX;
+			break;
+		case "oracle":
+			driver = DataMigrationConstants.MYSQL_DRIVER_CLASS;
+			URL = DataMigrationConstants.MYSQL_CONNECTION_PREFIX
+					+ DataMigrationConstants.MYSQL_HOSTNAME + ":"
+					+ DataMigrationConstants.MYSQL_PORT + "/";
+			break;
+		}
+		URL = URL + sb.getServerhost() + ":" + sb.getServerport() + "/"
+				+ sb.getSourcedatabase()
+				+ "?zeroDateTimeBehavior=convertToNull";
+
+		switch (sb.getStoragecompression().toLowerCase()) {
+		case "snappy codec":
+			compressiontype = DataMigrationConstants.SNAPPY_CODEC_CLASS;
+		}
+		switch (datafiletype.toLowerCase()) {
+		case "avro":
+			datafiletype = "avrodatafile";
+			break;
+
+		default:
+			break;
+		}
+
+		String passwordDir = hdfspath.concat("/passwords");
+		String passwordFile = passwordDir.concat("/" + sb.getRequestname()
+				+ ".enc");
+		LOGGER.info("pwd file:" + passwordFile);
+		HDFSUtil util = new HDFSUtil();
+		byte[] pwdarray = Base64.decodeBase64(encryptpassword);
+		util.writeFile(passwordFile, new ByteArrayInputStream(pwdarray), false,
+				"-rwx------");
+
+		if ("full".equalsIgnoreCase(loadType)) {
+			sqoopQuery = "sqoop import  -Dorg.apache.sqoop.credentials.loader.class=org.apache.sqoop.util.password.CryptoFileLoader  -Dorg.apache.sqoop.credentials.loader.crypto.passphrase="
+					+ key
+					+ " -Dorg.apache.sqoop.credentials.loader.crypto.salt=DESSSALTKEY --username "
+					+ userName
+					+ " --password-file "
+					+ passwordFile
+					+ " --table " + tbName + " --as-" + datafiletype;
+
+		} else {
+			if ("hourly".equalsIgnoreCase(loadType)
+					|| "daily".equalsIgnoreCase(loadType)
+					|| "adhoc".equalsIgnoreCase(loadType)) {
+				String startDate = logs.getStartdate();
+				String endDate = logs.getEnddate();
+				String CriteriaColumn = sb.getCriteriacolumn();
+				sqoopQuery = "sqoop import  -Dorg.apache.sqoop.credentials.loader.class=org.apache.sqoop.util.password.CryptoFileLoader  -Dorg.apache.sqoop.credentials.loader.crypto.passphrase="
+						+ key
+						+ " -Dorg.apache.sqoop.credentials.loader.crypto.salt=DESSSALTKEY --username "
+						+ userName
+						+ " --password-file "
+						+ passwordFile
+						+ " --query  "
+						+ "\""
+						+ " select * from "
+						+ tbName
+						+ " WHERE ("
+						+ CriteriaColumn
+						+ " >'"
+						+ startDate
+						+ "' AND "
+						+ CriteriaColumn
+						+ " <='"
+						+ endDate
+						+ "' ) AND \\$CONDITIONS " + "\"";
+			}
+		}
+
+		sqoopQuery = sqoopQuery + " --compression-codec " + compressiontype;
+		if (sb.getMappers() > 1) {
+			sqoopQuery = sqoopQuery + " -m " + mapper + " --split-by "
+					+ splitbyColumn;
+		} else {
+			sqoopQuery = sqoopQuery + " -m " + 1;
+		}
+
+		sqoopQuery = sqoopQuery + " --connect " + URL + " --driver " + driver;
+
+		switch (destination.toLowerCase()) {
+		case "hdfs":
+		case "hive":
+			String targetDirectory = logs.getTargetdirectory();
+			System.out.println(targetDirectory + "---------");
+			sqoopQuery = sqoopQuery + " --target-dir " + targetDirectory
+					+ " --delete-target-dir";
+			break;
+		case "hbase":
+			String hbaseTable = sb.getSourcetable();
+			String columnFamily = DataMigrationConstants.HBASE_DEFAULT_COLUMN_FAMILY;
+			String rowKey = sb.getRowkey();
+			LOGGER.info(hbaseTable + columnFamily + rowKey
+					+ "*****************");
+			sqoopQuery = sqoopQuery + " --hbase-create-table "
+					+ "--hbase-table " + hbaseTable + " --column-family "
+					+ columnFamily + " --hbase-row-key " + rowKey;
+			break;
+		}
+		return sqoopQuery;
+
+	}
+
+	public String executeSqoopScripts(Path path, RequestDetails sqoop,
+			RequestLogDetails logs) throws FRDMException {
+		String statusCode = "0";
+		try {
+			HDFSUtil util = new HDFSUtil();
+			String sqoopQuery = "";
+			BufferedReader br = null;
+			JSch jsch = new JSch();
+			Session session1;
+			LOGGER.info(sqoop.getUsername());
+			LOGGER.info(sqoop.getServerhost());
+			ResourceBundle bundle = ResourceBundle.getBundle("parameters");
+			key = bundle.getString("key");
+			hdfspath = bundle.getString("hdfspath");
+			LOGGER.info("********" + key + "*********" + hdfspath);
+			util.writeToOutPutStream(path, new Date()
+					+ " INFO: Generating Sqoop Query" + "\n");
+			sqoopQuery = sqoopQueryGeneration(sqoop, logs);
+			util.writeToOutPutStream(path, new Date()
+					+ " INFO: Generated Sqoop Query: " + sqoopQuery + "\n");
+			LOGGER.info(sqoopQuery);
+			System.out.println(sqoopQuery);
+			session1 = jsch.getSession(DataMigrationConstants.SHELL_USER,
+					DataMigrationConstants.SHELL_HOST_NAME,
+					DataMigrationConstants.PORT);
+			String pwd = PasswordCryption.decrypt(
+					DataMigrationConstants.SHELL_PASSWORD, key);
+			session1.setPassword(pwd);
+			session1.setConfig("StrictHostKeyChecking", "no");
+			LOGGER.info("Establishing Connection...");
+			session1.connect();
+
+			ChannelExec channelExec = (ChannelExec) session1
+					.openChannel("exec");
+			channelExec.setInputStream(null);
+			if (session1.isConnected()) {
+				LOGGER.info("connected to app");
+			}
+			util.writeToOutPutStream(path, new Date()
+					+ " INFO: Executing Sqoop Query" + "\n");
+			channelExec.setCommand(sqoopQuery + "; echo $?");
+			channelExec.connect();
+			InputStream is = channelExec.getInputStream();
+			br = new BufferedReader(new InputStreamReader(is));
+			String line;
+			while ((line = br.readLine()) != null && !channelExec.isClosed()) {
+				util.writeToOutPutStream(path, line + "\n");
+				statusCode = line;
+			}
+			br.close();
+			is.close();
+			channelExec.disconnect();
+			session1.disconnect();
+			util.writeToOutPutStream(path, new Date()
+					+ " INFO: Sqoop Query Execution completed" + "\n");
+			LOGGER.info(statusCode);
+			System.out.println(statusCode);
+		} catch (IOException | JSchException | InvalidKeyException
+				| NoSuchAlgorithmException | NoSuchPaddingException
+				| IllegalBlockSizeException | BadPaddingException
+				| InvalidKeySpecException e) {
+			throw new FRDMException(
+					"Could not execute Sqoop extraction process: "
+							+ e.getMessage(), e);
+		}
+		return statusCode;
+	}
+}

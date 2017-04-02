@@ -1,0 +1,4 @@
+.ui-layout-unit 
+.ui-layout-unit-content {
+	background: ! transparent;
+}

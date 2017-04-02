@@ -1,0 +1,46 @@
+package com.datamigration.util;
+
+public interface DataMigrationConstants {
+	final static String SERVERS_TABLE = "serverdetails";
+	final static String REQUESTS_TABLE = "requestdetails";
+	final static String REQUESTLOG_TABLE = "requestlog";
+	final static int PORT = 22;
+
+	final static String HIVE_DRIVER_CLASS = "org.apache.hive.jdbc.HiveDriver";
+	final static String HIVE_CONNECTION_PREFIX = "jdbc:hive2://";
+	final static String HIVE_HOSTNAME = "10.138.90.202";
+	final static String HIVE_PORT = "10000";
+	final static String HIVE_CONNECTION_DBNAME = "default";
+	final static String SHELL_HOST_NAME = "10.138.90.224";
+	final static String AVRO_SCHEMA_FILE_PATH = "avroschema/";
+	final static String UNDERSCORE_DELIMITER = "_";
+	static final String SHELL_USER = "root";
+	final static String SHELL_PASSWORD = "52cFfRFZkkmbGySljo5Q0A==";
+	final static String SERVERS_TABLE_ID = "serverid";
+	final static String SERVERS_TABLE_SERVER_TYPE = "servertype";
+	final static String SERVERS_TABLE_HOST = "hostname";
+	final static String SERVERS_TABLE_PORT = "port";
+	final static String MYSQL_DRIVER_CLASS = "com.mysql.jdbc.Driver";
+	final static String MYSQL_CONNECTION_PREFIX = "jdbc:mysql://";
+	final static String MYSQL_HOSTNAME = "10.138.90.224";
+	final static String MYSQL_PORT = "3306";
+	final static String METADATA_DATABASE_NAME = "datamigration";
+	final static String USER_NAME = "root";
+	final static String PASSWORD = "mariadb";
+	final static String LOG_DIR = "/tmp/Datamigration/logs";
+	final static String SNAPPY_CODEC_CLASS = "org.apache.hadoop.io.compress.SnappyCodec";
+	final static String HBASE_DEFAULT_COLUMN_FAMILY = "data";
+	final static String DELIMITER = "|";
+
+	final static String ADHOC_LOAD_TYPE_STRING = "adhoc";
+	final static String FULL_LOAD_TYPE_STRING = "full";
+	final static String DAILY_LOAD_TYPE_STRING = "daily";
+	final static String MONTHLY_LOAD_TYPE_STRING = "monthly";
+	final static String HOURLY_LOAD_TYPE_STRING = "hourly";
+	static final String ENCRYPT_ALGORITHM = "AES/ECB/PKCS5Padding";
+	static final String RUNNING = "RUNNING";
+	static final String INACTIVE = "INACTIVE";
+	static final String COMPLETED = "COMPLETED";
+	static final String FAILED = "FAILED";
+	static final String HIVE_PRINCIPAL = "hive/01hw507402.tcshydnextgen.com@TCSHYDNEXTGEN.COM";
+}

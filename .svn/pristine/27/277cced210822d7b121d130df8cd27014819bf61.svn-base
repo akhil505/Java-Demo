@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml"
+	xmlns:f="http://java.sun.com/jsf/core"
+	xmlns:h="http://java.sun.com/jsf/html"
+	xmlns:ui="http://java.sun.com/jsf/facelets"
+	xmlns:p="http://primefaces.org/ui">
+<h:head>
+	<title>Request Details</title>
+	<style>
+.ui-datatable.borderless thead th, .ui-datatable.borderless tbody,
+	.ui-datatable.borderless tbody tr, .ui-datatable.borderless tbody td {
+	border-style: none;
+}
+</style>
+</h:head>
+<h:body
+	style="background-image:url(images/background_tata.jpg); background-repeat: no-repeat; background-size: cover">
+	<div id="div1"
+		style="font-size: 70%; font-family: serif; text-align: left; background-repeat: x; padding-top: 5%; width: auto;">
+		<h:form>
+			<p:tabMenu activeIndex="1">
+				<p:menuitem value="Home Page" outcome="homepage">
+					<f:param name="i" value="0" />
+				</p:menuitem>
+				<p:menuitem value="Relational Database" outcome="requestdetails">
+					<f:param name="i" value="1" />
+				</p:menuitem>
+				<p:menuitem value="Data Streaming" outcome="homepage">
+					<f:param name="i" value="2" />
+				</p:menuitem>
+				<p:menuitem value="Social Media" outcome="homepage">
+					<f:param name="i" value="3" />
+				</p:menuitem>
+				<p:menuitem style="position:fixed; right:1%; color: white"
+					value="Logout" action="#{loginBean.logout}">
+				</p:menuitem>
+			</p:tabMenu>
+			<p:separator />
+			<p:commandButton action="newrequest?faces-redirect=true"
+				icon="ui-icon-plusthick" value="Add New Request"
+				style="margin-left:2%; margin-top:1%; margin-bottom:0.3%" />
+		</h:form>
+	</div>
+	<div id="div2" align="center"
+		style="font-family: serif; text-align: left; padding-left: 2%; padding-right: 2%; background-repeat: x; width: auto">
+		<h:form id="form">
+			<p:panel widgetVar="requestPanel" header="List of Available Requests"
+				style="background-image:url(images/portal-background-gradient.jpg); background-size: cover;">
+				<p:dataTable id="basicDT" var="req" widgetVar="reqTab"
+					value="#{requestsBean.requestList}" paginator="true" rows="5"
+					style="font-size:80%;width:auto; table-layout: fixed"
+					resizableColumns="true">
+					<f:facet name="header">
+						<p:outputPanel style="text-align:right">
+							<h:outputText value="Search all fields:" />
+							<p:inputText id="globalFilter" onkeyup="PF('reqTab').filter()"
+								style="width:150px" placeholder="Enter keyword" />
+						</p:outputPanel>
+					</f:facet>
+					<p:column headerText="Request Name">
+						<h:outputText value="#{req.requestname}" />
+					</p:column>
+					<p:column headerText="Hostname">
+						<h:outputText value="#{req.serverhost}" />
+					</p:column>
+					<p:column headerText="Server Type" filterBy="#{req.type}"
+						filterMatchMode="contains">
+						<h:outputText value="#{req.type}" />
+					</p:column>
+					<p:column headerText="Database">
+						<h:outputText value="#{req.sourcedatabase}" />
+					</p:column>
+					<p:column headerText="Tables">
+						<h:outputText value="#{req.sourcetables}" />
+					</p:column>
+					<p:column headerText="Target Type" filterMatchMode="exact"
+						filterBy="#{req.storagetarget}">
+						<f:facet name="filter">
+							<p:selectOneMenu onchange="PF('reqTab').filter()">
+								<f:selectItem itemLabel="Select One" itemValue="#{null}"
+									noSelectionOption="true" />
+								<f:selectItem itemLabel="HBase" itemValue="HBase" />
+								<f:selectItem itemLabel="HDFS" itemValue="HDFS" />
+								<f:selectItem itemLabel="Hive" itemValue="Hive" />
+							</p:selectOneMenu>
+						</f:facet>
+						<h:outputText value="#{req.storagetarget}" />
+					</p:column>
+					<p:column headerText="Load Type" filterBy="#{req.loadtype}"
+						filterMatchMode="contains">
+						<h:outputText value="#{req.loadtype}" />
+					</p:column>
+					<p:column style="width:6%; text-align: center" headerText="View">
+						<p:commandButton process="basicDT" update=":form:viewRequest"
+							oncomplete="PF('viewRequestDialog').show()"
+							actionListener="#{requestsBean.lastRunList}"
+							icon="ui-icon-search" title="View">
+							<f:setPropertyActionListener value="#{req}"
+								target="#{requestsBean.selectedRequest}" />
+						</p:commandButton>
+					</p:column>
+					<!-- <p:column style="width:7%;text-align: center" headerText="Delete">
+						<p:commandButton process="basicDT" update=":form:deleteRequest"
+							oncomplete="PF('deleteRequestDialog').show()"
+							icon="ui-icon-closethick" title="Delete">
+							<f:setPropertyActionListener value="#{req}"
+								target="#{requestsBean.selectedRequest}" />
+						</p:commandButton>
+					</p:column> -->
+				</p:dataTable>
+			</p:panel>
+			<p:dialog header="View Request" widgetVar="viewRequestDialog"
+				modal="true" showEffect="fade" hideEffect="fade" resizable="false"
+				style="background-size: cover; background-image:url(images/portal-background-gradient.jpg);">
+				<p:messages id="msg1" autoUpdate="true" showDetail="true"
+					closable="true" />
+				<p:tabView id="viewRequest" dynamic="true"
+					style="background-image:url(images/portal-background-gradient.jpg); background-size: cover;">
+					<p:ajax event="tabChange" listener="#{requestsBean.onTabChange}"
+						update="viewRequest" />
+					<p:tab id="reqDetails" title="Request Details">
+						<ui:include src="viewrequestdetails.xhtml"></ui:include>
+						<p:panelGrid
+							style="text-align: center; width:1000px; margin-left:1%">
+							<p:row>
+								<p:column>
+									<h:outputText value="" />
+								</p:column>
+								<p:column>
+									<h:outputText value="Status" />
+								</p:column>
+								<p:column>
+									<h:outputText value="Total Tables" />
+								</p:column>
+								<p:column>
+									<h:outputText value="Successful Tables" />
+								</p:column>
+								<p:column>
+									<h:outputText value="Failed Tables" />
+								</p:column>
+								<p:column>
+									<h:outputText value="Run Full Load"
+										rendered="#{requestsBean.selectedRequest.provisionstatus ne 'RUNNING' and requestsBean.selectedRequest.provisionstatus ne 'INACTIVE' and requestsBean.selectedRequest.loadtype eq 'Full'}" />
+									<h:outputText value="Run Recurring Load"
+										rendered="#{requestsBean.selectedRequest.provisionstatus ne 'RUNNING' and requestsBean.selectedRequest.provisionstatus ne 'INACTIVE' and requestsBean.selectedRequest.loadtype ne 'Full'}" />
+								</p:column>
+							</p:row>
+							<p:row>
+								<p:column>
+									<p:outputLabel value="Last Run" />
+								</p:column>
+								<p:column>
+									<p:outputLabel
+										value="#{requestsBean.selectedRequest.provisionstatus}" />
+								</p:column>
+								<p:column>
+									<p:outputLabel value="#{requestsBean.lastRunMap['ALL'].size()}" />
+								</p:column>
+								<p:column>
+									<p:outputLabel
+										value="#{requestsBean.lastRunMap['SUCCESS'].size()}" />
+								</p:column>
+								<p:column>
+									<p:outputLabel
+										value="#{requestsBean.lastRunMap['FAILED'].size()}" />
+								</p:column>
+								<p:column>
+									<p:commandButton icon="ui-icon-play" iconPos="center"
+										actionListener="#{requestsBean.runRequest}"
+										onclick="requestdetails"
+										rendered="#{requestsBean.selectedRequest.provisionstatus ne 'RUNNING' and requestsBean.selectedRequest.provisionstatus ne 'INACTIVE'}"></p:commandButton>
+								</p:column>
+							</p:row>
+						</p:panelGrid>
+					</p:tab>
+					<p:tab id="adhocReq" title="Submit Adhoc Request"
+						rendered="#{requestsBean.selectedRequest.loadtype ne 'Full'}">
+						<ui:include src="adhocrequest.xhtml"></ui:include>
+					</p:tab>
+					<p:tab id="reqLogDetails" title="Request Log Details">
+						<h:outputText value="No Logs available for this request"
+							rendered="#{empty requestsBean.logMap.keySet()}"></h:outputText>
+						<p:tabView value="#{requestsBean.logMap.keySet().toArray()}"
+							var="type" rendered="#{not empty requestsBean.logMap.keySet()}">
+							<p:tab title="#{type} Load">
+								<p:dataTable id="logDT" var="log" widgetVar="logTab"
+									value="#{requestsBean.logMap[type]}" paginator="true" rows="5"
+									style="font-size:80%;width:auto; table-layout: fixed"
+									resizableColumns="true">
+									<f:facet name="header">
+										<p:outputPanel style="text-align:right">
+											<h:outputText value="Search all fields:" />
+											<p:inputText id="globalFilter"
+												onkeyup="PF('logTab').filter()" style="width:150px"
+												placeholder="Enter keyword" />
+										</p:outputPanel>
+									</f:facet>
+									<p:column headerText="Table Name">
+										<h:outputText value="#{log.tablename}" />
+									</p:column>
+									<p:column headerText="Request Type">
+										<h:outputText value="#{log.requesttype}" />
+									</p:column>
+									<p:column headerText="Start Date" rendered="#{type ne 'Full'}">
+										<h:outputText value="#{log.startdate}" />
+									</p:column>
+									<p:column headerText="End Date" rendered="#{type ne 'Full'}">
+										<h:outputText value="#{log.enddate}" />
+									</p:column>
+									<p:column headerText="Target Directory" style="width:auto">
+										<h:outputText value="#{log.targetdirectory}" />
+									</p:column>
+									<p:column headerText="count">
+										<h:outputText value="#{log.count}" />
+									</p:column>
+									<p:column headerText="Execution Time">
+										<h:outputText value="#{log.executiontime}" />
+									</p:column>
+									<p:column headerText="Job Status">
+										<h:outputText value="#{log.jobstatus}" />
+									</p:column>
+									<p:column headerText="Recon Status">
+										<h:outputText value="#{log.reconstatus}" />
+									</p:column>
+									<p:column style="width:6%; text-align: center"
+										headerText="Recon Report">
+										<p:commandButton process="logDT" update=":viewreconform:reconDT"
+											actionListener="#{displayBean.readLines(log.reconfile)}"
+											oncomplete="PF('viewReconReportDialog').show()"
+											icon="ui-icon-search" title="View Recon Report">
+										</p:commandButton>
+										
+									</p:column>
+									<p:column style="width:7%; text-align: center"
+										headerText="Re-run">
+										<p:commandButton process="logDT"
+											oncomplete="PF('rerundialog').show()" icon="ui-icon-play"
+											title="Re-run">
+											<f:setPropertyActionListener value="#{log}"
+												target="#{requestsBean.selectedLog}" />
+										</p:commandButton>
+										<p:dialog header="Confirm Rerun" widgetVar="rerundialog"
+											modal="true" showEffect="fade" hideEffect="fade"
+											resizable="false" appendTo="@(body)">
+											<h:panelGrid columns="2" id="rrpanel"
+												style="text-align:center;">
+												<h:outputText
+													value="Data loded during the selected job will be deleted." />
+												<h:outputText value="Are you sure you want to rerun?" />
+												<p:commandButton value="Re-Run"
+													action="#{requestsBean.reRunRequest}" />
+												<p:commandButton value="Cancel"
+													oncomplete="PF('rerundialog').hide()" />
+											</h:panelGrid>
+										</p:dialog>
+									</p:column>
+									<p:column style="width:6%; text-align: center" headerText="Log">
+										<p:commandButton process="logDT" update=":viewlogform:logsDT"
+											actionListener="#{displayBean.readLines(log.logfile)}"
+											oncomplete="PF('viewLogDialog').show()" icon="ui-icon-search"
+											title="View Job Log">
+										</p:commandButton>
+
+																			</p:column>
+								</p:dataTable>
+							</p:tab>
+						</p:tabView>
+					</p:tab>
+				</p:tabView>
+			</p:dialog>
+		</h:form>
+		<p:dialog header="Confirm delete" widgetVar="deleteRequestDialog"
+			modal="true" showEffect="fade" hideEffect="fade" resizable="false">
+			<h:form>
+				<h:panelGrid columns="2" id="deleteRequest"
+					style="text-align:center;">
+					<h:outputText value="Request:" />
+					<h:outputText value="#{requestsBean.selectedRequest.requestname}" />
+					<p:commandButton value="Delete"
+						action="#{requestsBean.deleteRequest}" />
+					<p:commandButton value="Cancel"
+						oncomplete="PF('deleteRequestDialog').hide()" />
+				</h:panelGrid>
+			</h:form>
+		</p:dialog>
+		<p:dialog header="View Log" widgetVar="viewLogDialog"
+											modal="true" showEffect="fade" hideEffect="fade"
+											resizable="true" appendTo="@(body)">
+											<h:form id="viewlogform">
+											<p:commandButton icon="ui-icon-refresh"
+												actionListener="#{displayBean.readLines(displayBean.fileName)}"
+												update="logsDT"/>
+											<br />
+
+											<p:dataTable id="logsDT" var="logdata" widgetVar="logsDT"
+												value="#{displayBean.logData}"
+												style="font-size:80%;width:1200px; height: 600px;table-layout: fixed"
+												resizableColumns="true">
+												<p:column style="overflow-x: scroll">
+													<h:outputText value="#{logdata}" escape="false"
+														style="white-space:pre-line;" />
+												</p:column>
+											</p:dataTable>
+											</h:form>
+										</p:dialog>
+									 <p:dialog header="Recon Report"
+											widgetVar="viewReconReportDialog" modal="true"
+											showEffect="fade" hideEffect="fade" resizable="true"
+											appendTo="@(body)" >
+											<h:form id="viewreconform">
+											<h:panelGrid columns="2">
+												<p:commandButton icon="ui-icon-refresh"
+													actionListener="#{displayBean.readLines(displayBean.fileName)}"
+													update="reconDT" />
+												<h:commandLink style="float:right">
+													<p:graphicImage url="images/pdf.png" />
+													<p:dataExporter type="pdf" target="reconDT"
+														fileName="ReconReport" pageOnly="true" />
+												</h:commandLink>
+												<p:column colspan="2">
+													<p:dataTable id="reconDT" var="recon" widgetVar="reconDT"
+														value="#{displayBean.logData}"
+														style="font-size:80%; height: 600px;"
+														styleClass="borderless" tableStyle="width:auto">
+														<p:column style="overflow-x: scroll">
+															<h:outputText value="#{recon}" escape="false"
+																style="white-space:pre-line;" />
+														</p:column>
+													</p:dataTable>
+												</p:column>
+											</h:panelGrid>
+											</h:form>
+										</p:dialog> 
+		
+	</div>
+</h:body>
+</html>

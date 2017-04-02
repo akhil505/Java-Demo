@@ -1,0 +1,56 @@
+package com.datamigration.model;
+
+import java.io.Serializable;
+import java.util.ResourceBundle;
+
+import javax.annotation.PostConstruct;
+import javax.faces.bean.ManagedBean;
+import javax.faces.bean.ViewScoped;
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+
+/**
+ * This class encapsulates some basic REST client API.
+ */
+@SuppressWarnings("serial")
+@ManagedBean
+@ViewScoped
+public class RestClient implements Serializable {
+
+	private Client client;
+	public String SERVICE_BASE_URI;
+
+	@PostConstruct
+	protected void initialize() {
+		ResourceBundle bundle = ResourceBundle.getBundle("parameters");
+		SERVICE_BASE_URI = bundle.getString("baseURI");
+		client = ClientBuilder.newClient();
+	}
+
+	public WebTarget getWebResource(String relativeUrl) {
+		if (client == null) {
+			initialize();
+		}
+		System.out.println("SERVICE_BASE_URI: " + SERVICE_BASE_URI
+				+ relativeUrl);
+		return client.target(SERVICE_BASE_URI + relativeUrl);
+	}
+
+	public Response clientGetResponse(String relativeUrl) {
+		WebTarget webResource = getWebResource(relativeUrl);
+		System.out.println("--" + webResource.getUri().toString());
+		return webResource.request("application/json").get(Response.class);
+	}
+
+	public Response clientPostResponse(String relativeUrl, String parameter) {
+		WebTarget webResource = getWebResource(relativeUrl);
+		System.out.println("--" + webResource.getUri().toString());
+		return webResource.request().post(
+				Entity.entity(parameter, MediaType.APPLICATION_JSON),
+				Response.class);
+	}
+}

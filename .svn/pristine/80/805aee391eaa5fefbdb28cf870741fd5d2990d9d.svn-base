@@ -1,0 +1,170 @@
+package com.datamigration.model;
+
+import java.io.IOException;
+import java.io.Serializable;
+import java.net.URISyntaxException;
+import java.sql.SQLException;
+import java.util.List;
+
+import javax.annotation.PostConstruct;
+import javax.faces.application.FacesMessage;
+import javax.faces.bean.ManagedProperty;
+import javax.faces.bean.SessionScoped;
+import javax.faces.bean.ViewScoped;
+import javax.faces.context.ExternalContext;
+import javax.faces.context.FacesContext;
+
+import org.primefaces.event.FlowEvent;
+
+import com.datamigration.model.FlumeBean;
+import com.datamigration.services.FlafkaService;
+import com.datamigration.services.FlumeService;
+import com.datamigration.util.DataMigrationConstants;
+import com.datamigration.util.FRDMException;
+import com.datamigration.util.StreamingUtil;
+import com.jcraft.jsch.JSchException;
+import com.jcraft.jsch.SftpException;
+
+@SuppressWarnings("serial")
+@javax.faces.bean.ManagedBean(name = "flowWizard")
+@ViewScoped
+public class FlowWizard implements Serializable {
+
+	@ManagedProperty(value = "#{flumeService}")
+	private FlumeService flumeService;
+
+	@ManagedProperty(value = "#{flafkaService}")
+	private FlafkaService flafkaService;
+
+	@ManagedProperty(value = "#{flumeBean}")
+	private FlumeBean flumeBean;
+
+	private int currentLevel = 1;
+	private String loginUser;
+	private List<JobDetailsBean> jobDetailsList;
+	private List<ServerDetails> serverDetailsList;
+	@ManagedProperty(value = "#{serverDetails}")
+	private ServerDetails selectedServer;
+
+	@PostConstruct
+	public void init() throws FRDMException {
+		System.out.println("in init");
+		FacesContext context = FacesContext.getCurrentInstance();
+		ExternalContext externalContext = context.getExternalContext();
+		LoginBean lbean = (LoginBean) externalContext.getSessionMap().get("loginBean");
+		loginUser = "";
+		if (lbean != null) {
+			loginUser = lbean.getLoginName();
+		} else {
+			context.addMessage("",
+					new FacesMessage(FacesMessage.SEVERITY_ERROR, "OOPS", "Session TimedOut!! Please login again"));
+			context.getExternalContext().invalidateSession();
+			try {
+				context.getExternalContext().redirect(externalContext.getRequestContextPath() + "/faces/login.xhtml");
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		try {
+			loadRequestDetails(loginUser);
+		} catch (ClassNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
+	private void loadRequestDetails(String loginid) throws ClassNotFoundException, SQLException, FRDMException {
+		jobDetailsList = StreamingUtil.getUserRequests(loginid);
+		serverDetailsList = StreamingUtil.getServerDetails();
+	}
+
+	public FlumeBean getFlumeBean() {
+		return flumeBean;
+	}
+
+	public void setFlumeBean(FlumeBean flumeBean) {
+		this.flumeBean = flumeBean;
+	}
+
+	public FlumeService getFlumeService() {
+		return flumeService;
+	}
+
+	public void setFlumeService(FlumeService flumeService) {
+		this.flumeService = flumeService;
+	}
+
+	public void save() throws ClassNotFoundException, SQLException, IOException, JSchException, SftpException {
+		FacesContext context = FacesContext.getCurrentInstance();
+		ExternalContext externalContext = context.getExternalContext();
+		LoginBean lbean = (LoginBean) externalContext.getSessionMap().get("loginBean");
+		flumeService.runJob(lbean.getLoginName(), selectedServer);
+		currentLevel = 1;
+	}
+
+	public void saveFlafka()
+			throws ClassNotFoundException, SQLException, IOException, JSchException, SftpException, URISyntaxException {
+		FacesContext context = FacesContext.getCurrentInstance();
+		ExternalContext externalContext = context.getExternalContext();
+		LoginBean lbean = (LoginBean) externalContext.getSessionMap().get("loginBean");
+		flafkaService.runJob(lbean.getLoginName(), selectedServer);
+		currentLevel = 1;
+	}
+
+	public String onFlowProcess(FlowEvent event) {
+		System.out.println("in onFlowProcerss" + event.getNewStep().toString());
+		return event.getNewStep();
+	}
+
+	public int getCurrentLevel() {
+		return currentLevel;
+	}
+
+	public void setCurrentLevel(int currentLevel) {
+		this.currentLevel = currentLevel;
+	}
+
+	public FlafkaService getFlafkaService() {
+		return flafkaService;
+	}
+
+	public void setFlafkaService(FlafkaService flafkaService) {
+		this.flafkaService = flafkaService;
+	}
+
+	public List<ServerDetails> getServerDetailsList() {
+		return serverDetailsList;
+	}
+
+	public void setServerDetailsList(List<ServerDetails> serverDetailsList) {
+		this.serverDetailsList = serverDetailsList;
+	}
+
+	public String getLoginUser() {
+		return loginUser;
+	}
+
+	public void setLoginUser(String loginUser) {
+		this.loginUser = loginUser;
+	}
+
+	public List<JobDetailsBean> getJobDetailsList() {
+		return jobDetailsList;
+	}
+
+	public void setJobDetailsList(List<JobDetailsBean> jobDetailsList) {
+		this.jobDetailsList = jobDetailsList;
+	}
+
+	public ServerDetails getSelectedServer() {
+		return selectedServer;
+	}
+
+	public void setSelectedServer(ServerDetails selectedServer) {
+		this.selectedServer = selectedServer;
+	}
+
+}
